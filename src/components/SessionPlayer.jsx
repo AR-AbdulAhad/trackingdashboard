@@ -18,6 +18,20 @@ export default function SessionPlayer({ recording, onClose }) {
     }
 
     try {
+      const evts = typeof recording.events === 'string' ? JSON.parse(recording.events) : recording.events;
+      
+      // Basic validation: ensure we have an array and it contains a FullSnapshot (type 2) or Meta (type 4) early on
+      if (!Array.isArray(evts) || evts.length < 2) {
+        throw new Error('Invalid events array');
+      }
+      
+      const hasValidStart = evts.some((e, i) => i < 10 && (e.type === 2 || e.type === 4));
+      if (!hasValidStart) {
+        setError('Recording is corrupted: Missing initial snapshot or meta data.');
+        setLoading(false);
+        return;
+      }
+
       if (playerRef.current) {
         playerRef.current.pause();
         playerRef.current = null;
@@ -26,7 +40,7 @@ export default function SessionPlayer({ recording, onClose }) {
       playerRef.current = new rrwebPlayer({
         target: containerRef.current,
         props: {
-          events: typeof recording.events === 'string' ? JSON.parse(recording.events) : recording.events,
+          events: evts,
           autoPlay: true,
           width: 800,
           height: 600,
