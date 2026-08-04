@@ -148,21 +148,23 @@ const VisitorDetailPanel = ({ visitorId, onClose }) => {
                 <div className="animate-fade-in space-y-4">
                   {data.recordings?.length > 0 ? (
                     data.recordings.map(rec => (
-                      <div key={rec.id} className="p-4 rounded-xl border border-slate-200 bg-white flex items-center justify-between group hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-sky-50 flex items-center justify-center text-sky-600">
-                            <Eye className="w-5 h-5" />
+                      <div key={rec.id} className="p-4 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-4 group hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="w-10 h-10 shrink-0 rounded-full bg-sky-50 flex items-center justify-center text-sky-600">
+                            <Eye className="w-4 h-4" />
                           </div>
-                          <div>
-                            <p className="font-bold text-sm text-slate-800">{rec.pageUrl || 'Configurator Session'}</p>
-                            <p className="text-xs text-slate-500 font-medium">
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm text-slate-800 truncate" title={rec.pageUrl}>
+                              {rec.pageUrl || 'Configurator Session'}
+                            </p>
+                            <p className="text-xs text-slate-500 font-medium mt-0.5">
                               {new Date(rec.createdAt).toLocaleString()} • {Math.round(rec.duration / 1000)}s
                             </p>
                           </div>
                         </div>
                         <button
                           onClick={() => handlePlayRecording(rec.id)}
-                          className="px-4 py-2 bg-sky-500 text-white font-bold text-sm rounded-lg hover:bg-sky-600 transition-colors flex items-center gap-2"
+                          className="shrink-0 px-4 py-2 bg-sky-500 text-white font-bold text-sm rounded-lg hover:bg-sky-600 transition-colors flex items-center gap-2 shadow-sm"
                         >
                           <PlayCircle className="w-4 h-4" /> Play
                         </button>
