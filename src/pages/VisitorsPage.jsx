@@ -130,12 +130,12 @@ const VisitorDetailPanel = ({ visitorId, onClose }) => {
                       <div className="absolute -left-[21px] w-3 h-3 rounded-full bg-sky-500 ring-4 ring-white" />
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                         <div className="flex justify-between items-start mb-1">
-                          <p className="font-bold text-sm text-slate-800 capitalize">{event.type.replace(/_/g, ' ')}</p>
+                          <p className="font-bold text-sm text-slate-800 capitalize">{event.eventName?.replace(/_/g, ' ')}</p>
                           <span className="text-xs text-slate-400 font-medium">{formatDateTime(event.createdAt)}</span>
                         </div>
-                        {event.details && (
+                        {event.eventParams && (
                           <pre className="text-xs text-slate-500 mt-2 bg-white p-2 rounded border border-slate-100 overflow-x-auto">
-                            {JSON.stringify(event.details, null, 2)}
+                            {JSON.stringify(event.eventParams, null, 2)}
                           </pre>
                         )}
                       </div>
