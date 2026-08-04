@@ -40,7 +40,7 @@ export default function SessionPlayer({ recording, onClose }) {
     }
 
     return () => {
-      if (playerRef.current) {
+      if (playerRef.current && typeof playerRef.current.pause === 'function') {
         playerRef.current.pause();
       }
     };
