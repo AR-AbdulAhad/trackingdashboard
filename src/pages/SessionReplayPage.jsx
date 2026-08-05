@@ -47,6 +47,15 @@ export default function SessionReplayPage() {
 
       containerRef.current.innerHTML = '';
 
+      // Find meta event to get actual recording dimensions
+      let recordWidth = 1024;
+      let recordHeight = 576;
+      const metaEvent = evts.find(e => e.type === 4); // 4 is Meta
+      if (metaEvent && metaEvent.data) {
+        recordWidth = metaEvent.data.width || recordWidth;
+        recordHeight = metaEvent.data.height || recordHeight;
+      }
+
       // Initialize new player
       playerRef.current = new rrwebPlayer({
         target: containerRef.current,
@@ -54,14 +63,11 @@ export default function SessionReplayPage() {
           events: evts,
           autoPlay: true,
           showController: true,
-          // Let it figure out its own dimensions
+          width: recordWidth,
+          height: recordHeight,
+          autoScale: true,
         },
       });
-
-      // Try to trigger a resize to fix white screen
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 500);
 
     } catch (err) {
       console.error(err);
@@ -120,6 +126,18 @@ export default function SessionReplayPage() {
                 <p className="font-bold mb-2">Error loading playback</p>
                 <p className="text-sm">{error?.message || playerError}</p>
               </div>
+            </div>
+          )}
+
+          {/* Debug Overlay */}
+          {recording && recording.events && (
+            <div className="absolute top-0 right-0 z-50 bg-black/80 text-green-400 p-2 text-[10px] font-mono rounded-bl-lg pointer-events-none whitespace-pre">
+              {(() => {
+                try {
+                  const evts = typeof recording.events === 'string' ? JSON.parse(recording.events) : recording.events;
+                  return `Total Events: ${evts.length}\nTypes: ${evts.slice(0, 10).map(e => e.type).join(', ')}`;
+                } catch(e) { return 'Parse Error'; }
+              })()}
             </div>
           )}
 
