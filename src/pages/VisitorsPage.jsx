@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getVisitors, getVisitorDetails, getRecordingPlayback } from '../lib/api';
 import PageHeader from '../components/PageHeader';
-import SessionPlayer from '../components/SessionPlayer';
 import { Search, Filter, ChevronLeft, ChevronRight, ShoppingBag, Eye, Database, PlayCircle } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
@@ -17,15 +16,9 @@ const VisitorDetailPanel = ({ visitorId, onClose }) => {
   const { formatDate, formatDateTime, t } = useI18n();
 
   const [activeTab, setActiveTab] = useState('overview');
-  const [playingRecording, setPlayingRecording] = useState(null);
 
-  const handlePlayRecording = async (id) => {
-    try {
-      const rec = await getRecordingPlayback(id);
-      setPlayingRecording(rec);
-    } catch {
-      alert('Failed to load recording');
-    }
+  const handlePlayRecording = (id) => {
+    window.open(`/replay/${id}`, '_blank'); // Open in a new tab for a better experience
   };
 
   if (!visitorId) return null;
@@ -184,10 +177,6 @@ const VisitorDetailPanel = ({ visitorId, onClose }) => {
           <div className="p-6 text-red-500 font-bold">Failed to load visitor details.</div>
         )}
       </div>
-
-      {playingRecording && (
-        <SessionPlayer recording={playingRecording} onClose={() => setPlayingRecording(null)} />
-      )}
     </>
   );
 };

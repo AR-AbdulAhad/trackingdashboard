@@ -15,6 +15,7 @@ import JourneyDashboard from './pages/JourneyDashboard';
 import MarketingDashboard from './pages/MarketingDashboard';
 import VisitorsPage from './pages/VisitorsPage';
 import SettingsPage from './pages/SettingsPage';
+import SessionReplayPage from './pages/SessionReplayPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="/visitors" element={<VisitorsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
+      <Route path="/replay/:recordingId" element={<SessionReplayPage />} />
       <Route path="*" element={<CatchAllRoute />} />
     </Routes>
   );
