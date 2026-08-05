@@ -33,8 +33,17 @@ export default function SessionPlayer({ recording, onClose }) {
       }
 
       if (playerRef.current) {
-        playerRef.current.pause();
+        try {
+          if (typeof playerRef.current.pause === 'function') playerRef.current.pause();
+          if (typeof playerRef.current.$destroy === 'function') playerRef.current.$destroy();
+        } catch(e) {
+          console.warn('rrweb-player destroy error:', e);
+        }
         playerRef.current = null;
+      }
+
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
       }
 
       playerRef.current = new rrwebPlayer({
@@ -42,6 +51,7 @@ export default function SessionPlayer({ recording, onClose }) {
         props: {
           events: evts,
           autoPlay: true,
+          autoScale: true,
           width: 800,
           height: 600,
         },
@@ -54,8 +64,17 @@ export default function SessionPlayer({ recording, onClose }) {
     }
 
     return () => {
-      if (playerRef.current && typeof playerRef.current.pause === 'function') {
-        playerRef.current.pause();
+      try {
+        if (playerRef.current) {
+          if (typeof playerRef.current.pause === 'function') {
+            playerRef.current.pause();
+          }
+          if (typeof playerRef.current.$destroy === 'function') {
+            playerRef.current.$destroy();
+          }
+        }
+      } catch (e) {
+        console.warn('rrweb-player cleanup warning:', e);
       }
     };
   }, [recording]);
