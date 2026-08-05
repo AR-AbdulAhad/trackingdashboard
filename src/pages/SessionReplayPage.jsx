@@ -60,7 +60,10 @@ export default function SessionReplayPage() {
                   const events = window.__RRWEB_EVENTS__;
                   if (!events || events.length === 0) return;
                   
-                  new rrwebPlayer({
+                  // Handle UMD default export wrapping
+                  const Player = window.rrwebPlayer.default || window.rrwebPlayer;
+                  
+                  new Player({
                     target: document.getElementById('player-container'),
                     props: {
                       events: events,
