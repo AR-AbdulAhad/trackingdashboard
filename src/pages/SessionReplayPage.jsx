@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { getRecordingPlayback } from '../lib/api';
 import { ArrowLeft, Loader2, PlayCircle, PauseCircle } from 'lucide-react';
 import { Replayer } from 'rrweb';
-import 'rrweb/dist/rrweb.min.css';
 
 export default function SessionReplayPage() {
   const { recordingId } = useParams();
