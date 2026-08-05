@@ -31,13 +31,12 @@ export default function SessionReplayPage() {
       // Deep clone to prevent rrweb from mutating the React Query cache!
       const clonedEvents = JSON.parse(JSON.stringify(evts));
 
-      const doc = iframeRef.current.contentDocument;
-      const win = iframeRef.current.contentWindow;
-      
-      if (doc && win) {
-        // Pass events directly to iframe's window object
-        win.__RRWEB_EVENTS__ = clonedEvents;
+      // Pass events via parent window so they survive doc.write()
+      window.__CURRENT_RECORDING_EVENTS__ = clonedEvents;
 
+      const doc = iframeRef.current.contentDocument;
+      
+      if (doc) {
         const html = `
           <!DOCTYPE html>
           <html>
@@ -54,13 +53,11 @@ export default function SessionReplayPage() {
             <div id="player-container"></div>
             <script src="https://unpkg.com/rrweb-player@2.1.0/dist/rrweb-player.umd.cjs"></script>
             <script>
-              // Adding a small delay to ensure UMD script has parsed fully
               setTimeout(() => {
                 try {
-                  const events = window.__RRWEB_EVENTS__;
+                  const events = window.parent.__CURRENT_RECORDING_EVENTS__;
                   if (!events || events.length === 0) return;
                   
-                  // Handle UMD default export wrapping
                   const Player = window.rrwebPlayer.default || window.rrwebPlayer;
                   
                   new Player({
