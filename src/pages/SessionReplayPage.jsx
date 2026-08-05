@@ -47,14 +47,11 @@ export default function SessionReplayPage() {
 
       containerRef.current.innerHTML = '';
 
-      // Find meta event to get actual recording dimensions
-      let recordWidth = 1024;
-      let recordHeight = 576;
-      const metaEvent = evts.find(e => e.type === 4); // 4 is Meta
-      if (metaEvent && metaEvent.data) {
-        recordWidth = metaEvent.data.width || recordWidth;
-        recordHeight = metaEvent.data.height || recordHeight;
-      }
+      // The width and height props define the OUTER size of the player.
+      // autoScale: true will then scale the inner recording to fit this outer size.
+      // So we MUST use the container's actual size on the screen!
+      const containerWidth = containerRef.current.clientWidth || 1024;
+      const containerHeight = containerRef.current.clientHeight || 576;
 
       // Initialize new player
       playerRef.current = new rrwebPlayer({
@@ -63,8 +60,8 @@ export default function SessionReplayPage() {
           events: evts,
           autoPlay: true,
           showController: true,
-          width: recordWidth,
-          height: recordHeight,
+          width: containerWidth,
+          height: containerHeight,
           autoScale: true,
         },
       });
