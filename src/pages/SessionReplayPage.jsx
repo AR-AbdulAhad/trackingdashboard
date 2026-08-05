@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getRecordingPlayback } from '../lib/api';
 import { ArrowLeft, Loader2, PlayCircle, PauseCircle } from 'lucide-react';
 import { Replayer } from 'rrweb';
+import 'rrweb/dist/rrweb.min.css';
 
 export default function SessionReplayPage() {
   const { recordingId } = useParams();
@@ -12,6 +13,8 @@ export default function SessionReplayPage() {
   const replayerRef = useRef(null);
   const [playerError, setPlayerError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [totalTime, setTotalTime] = useState(0);
 
   const { data: recording, isLoading, error } = useQuery({
     queryKey: ['recording', recordingId],
@@ -50,7 +53,6 @@ export default function SessionReplayPage() {
         const scaleY = containerHeight / recordHeight;
         const scale = Math.min(scaleX, scaleY, 1); 
         
-        // Absolute centering holy grail
         replayer.wrapper.style.position = 'absolute';
         replayer.wrapper.style.top = '50%';
         replayer.wrapper.style.left = '50%';
@@ -60,12 +62,18 @@ export default function SessionReplayPage() {
 
       replayerRef.current = replayer;
       
+      // Setup timing
+      const metaData = replayer.getMetaData();
+      setTotalTime(metaData.totalTime);
+      setCurrentTime(0);
+
       // Auto play
       replayer.play();
       setIsPlaying(true);
 
       replayer.on('finish', () => {
         setIsPlaying(false);
+        setCurrentTime(metaData.totalTime);
       });
 
     } catch (err) {
@@ -83,14 +91,44 @@ export default function SessionReplayPage() {
     };
   }, [recording]);
 
+  // Update timer while playing
+  useEffect(() => {
+    let interval;
+    if (isPlaying && replayerRef.current) {
+      interval = setInterval(() => {
+        if (replayerRef.current && replayerRef.current.timer) {
+          setCurrentTime(replayerRef.current.timer.timeOffset);
+        }
+      }, 50); // High frequency for smooth slider
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
   const togglePlay = () => {
     if (!replayerRef.current) return;
     if (isPlaying) {
       replayerRef.current.pause();
     } else {
-      replayerRef.current.play();
+      replayerRef.current.play(currentTime >= totalTime ? 0 : currentTime);
     }
     setIsPlaying(!isPlaying);
+  };
+
+  const handleSeek = (e) => {
+    const newTime = parseInt(e.target.value, 10);
+    setCurrentTime(newTime);
+    if (replayerRef.current) {
+      replayerRef.current.play(newTime);
+      if (!isPlaying) setIsPlaying(true);
+    }
+  };
+
+  const formatTime = (ms) => {
+    if (isNaN(ms) || ms < 0) return '0:00';
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -147,8 +185,24 @@ export default function SessionReplayPage() {
                <button onClick={togglePlay} className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 shadow-md transition-transform hover:scale-105">
                  {isPlaying ? <PauseCircle className="w-6 h-6" fill="currentColor" /> : <PlayCircle className="w-6 h-6" fill="currentColor" />}
                </button>
-               <div className="text-sm font-semibold text-slate-700 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
-                  {isPlaying ? 'Playing Session' : 'Session Paused'}
+               
+               <div className="text-sm font-semibold text-slate-700 font-mono w-12 text-right">
+                 {formatTime(currentTime)}
+               </div>
+               
+               <div className="flex-1 px-2 flex items-center">
+                 <input 
+                   type="range" 
+                   min="0" 
+                   max={totalTime || 100} 
+                   value={currentTime} 
+                   onChange={handleSeek}
+                   className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                 />
+               </div>
+               
+               <div className="text-sm font-semibold text-slate-500 font-mono w-12">
+                 {formatTime(totalTime)}
                </div>
             </div>
           )}
