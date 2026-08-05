@@ -47,22 +47,12 @@ export default function SessionReplayPage() {
 
       containerRef.current.innerHTML = '';
 
-      // The width and height props define the OUTER size of the player.
-      // autoScale: true will then scale the inner recording to fit this outer size.
-      // So we MUST use the container's actual size on the screen!
-      const containerWidth = containerRef.current.clientWidth || 1024;
-      const containerHeight = containerRef.current.clientHeight || 576;
-
-      // Initialize new player
+      // Initialize new player with minimal configuration
       playerRef.current = new rrwebPlayer({
         target: containerRef.current,
         props: {
           events: evts,
-          autoPlay: true,
-          showController: true,
-          width: containerWidth,
-          height: containerHeight,
-          autoScale: true,
+          autoPlay: true
         },
       });
 
@@ -138,12 +128,13 @@ export default function SessionReplayPage() {
             </div>
           )}
 
-          {/* Player Container - Taking full space */}
-          <div 
-            ref={containerRef} 
-            className="w-full h-full flex items-center justify-center bg-slate-50 rrweb-player-container"
-            style={{ minHeight: 0 }}
-          />
+          {/* Player Container - Taking full space robustly */}
+          <div className="relative w-full h-full bg-slate-50 overflow-hidden flex-1">
+            <div 
+              ref={containerRef} 
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
         </div>
       </div>
     </div>
