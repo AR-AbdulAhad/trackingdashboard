@@ -43,8 +43,7 @@ export default function SessionReplayPage() {
           <html>
           <head>
             <meta charset="utf-8">
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/rrweb-player@2.1.0/dist/style.css" />
-            <script src="https://cdn.jsdelivr.net/npm/rrweb-player@2.1.0/dist/index.js"></script>
+            <link rel="stylesheet" href="https://unpkg.com/rrweb-player@2.1.0/dist/style.css" />
             <style>
               body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #f8fafc; font-family: sans-serif; }
               #player-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
@@ -53,8 +52,10 @@ export default function SessionReplayPage() {
           </head>
           <body>
             <div id="player-container"></div>
+            <script src="https://unpkg.com/rrweb-player@2.1.0/dist/rrweb-player.umd.cjs"></script>
             <script>
-              window.onload = () => {
+              // Adding a small delay to ensure UMD script has parsed fully
+              setTimeout(() => {
                 try {
                   const events = window.__RRWEB_EVENTS__;
                   if (!events || events.length === 0) return;
@@ -74,7 +75,7 @@ export default function SessionReplayPage() {
                   console.error('Player error:', e);
                   document.body.innerHTML = '<div style="color:red;padding:20px;">Error rendering player: ' + e.message + '</div>';
                 }
-              };
+              }, 100);
             </script>
           </body>
           </html>
