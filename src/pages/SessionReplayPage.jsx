@@ -52,7 +52,7 @@ export default function SessionReplayPage() {
           evt.data.adds.forEach(add => add.node && patchNode(add.node));
         } else if (evt.type === 3 && evt.data && evt.data.attributes) { // Incremental attributes
           evt.data.attributes.forEach(attr => {
-            if (attr.attributes && attr.attributes.id && attr.attributes.id.includes('preview-iframe')) {
+            if (attr.attributes && typeof attr.attributes.id === 'string' && attr.attributes.id.includes('preview-iframe')) {
                attr.attributes.src = 'https://playcanv.as/e/p/QIG7fh8C/';
             }
           });
