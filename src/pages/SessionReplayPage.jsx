@@ -31,25 +31,37 @@ export default function SessionReplayPage() {
 
       containerRef.current.innerHTML = ''; // Clean container
 
+      // Create a wrapper specifically for scaling
+      const scaleWrapper = document.createElement('div');
+      containerRef.current.appendChild(scaleWrapper);
+
       const replayer = new Replayer(evts, {
-        root: containerRef.current,
+        root: scaleWrapper,
         unpackFn: null,
       });
 
       // Scale player to fit container perfectly
-      const containerWidth = containerRef.current.clientWidth;
-      const containerHeight = containerRef.current.clientHeight;
+      const padding = 32; // match the p-4 (16px * 2) of the container
+      const containerWidth = containerRef.current.clientWidth - padding;
+      const containerHeight = containerRef.current.clientHeight - padding;
       const metaEvent = evts.find(e => e.type === 4);
       
       if (metaEvent && metaEvent.data) {
-        const recordWidth = metaEvent.data.width;
-        const recordHeight = metaEvent.data.height;
+        const recordWidth = metaEvent.data.width || 1024;
+        const recordHeight = metaEvent.data.height || 576;
+        
         const scaleX = containerWidth / recordWidth;
         const scaleY = containerHeight / recordHeight;
         const scale = Math.min(scaleX, scaleY, 1); 
         
+        // Scale the iframe from the top left
         replayer.wrapper.style.transform = `scale(${scale})`;
-        replayer.wrapper.style.transformOrigin = 'center center';
+        replayer.wrapper.style.transformOrigin = 'top left';
+        
+        // Give the wrapper the exact scaled dimensions so flexbox centers it perfectly!
+        scaleWrapper.style.width = `${recordWidth * scale}px`;
+        scaleWrapper.style.height = `${recordHeight * scale}px`;
+        scaleWrapper.style.position = 'relative';
       }
 
       replayerRef.current = replayer;
