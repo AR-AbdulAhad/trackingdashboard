@@ -2,15 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getRecordingPlayback } from '../lib/api';
-import rrwebPlayer from 'rrweb-player';
-import 'rrweb-player/dist/style.css';
 import { ArrowLeft, Loader2, PlayCircle } from 'lucide-react';
 
 export default function SessionReplayPage() {
   const { recordingId } = useParams();
   const navigate = useNavigate();
-  const containerRef = useRef(null);
-  const playerRef = useRef(null);
+  const iframeRef = useRef(null);
   const [playerError, setPlayerError] = useState('');
 
   const { data: recording, isLoading, error } = useQuery({
@@ -20,64 +17,78 @@ export default function SessionReplayPage() {
   });
 
   useEffect(() => {
-    if (!recording || !containerRef.current) return;
-
-    if (!recording.events || recording.events.length < 2) {
-      setPlayerError('Recording is too short or corrupted to playback.');
-      return;
-    }
+    if (!recording || !recording.events || !iframeRef.current) return;
 
     try {
-      const evts = typeof recording.events === 'string' ? JSON.parse(recording.events) : recording.events;
+      let evts = typeof recording.events === 'string' 
+        ? JSON.parse(recording.events) 
+        : recording.events;
       
       if (!Array.isArray(evts) || evts.length < 2) {
         throw new Error('Invalid events array');
       }
 
-      // Clear previous player
-      if (playerRef.current) {
-        try {
-          if (typeof playerRef.current.pause === 'function') playerRef.current.pause();
-          if (typeof playerRef.current.$destroy === 'function') playerRef.current.$destroy();
-        } catch(e) {
-          console.warn(e);
-        }
-        playerRef.current = null;
-      }
+      // Deep clone to prevent rrweb from mutating the React Query cache!
+      const clonedEvents = JSON.parse(JSON.stringify(evts));
 
-      containerRef.current.innerHTML = '';
-
-      // Initialize new player with full configuration
-      const containerWidth = containerRef.current.clientWidth || 1024;
-      const containerHeight = containerRef.current.clientHeight || 576;
+      const doc = iframeRef.current.contentDocument;
+      const win = iframeRef.current.contentWindow;
       
-      playerRef.current = new rrwebPlayer({
-        target: containerRef.current,
-        props: {
-          events: evts,
-          autoPlay: true,
-          showController: true,
-          width: containerWidth,
-          height: containerHeight,
-          autoScale: true,
-        },
-      });
+      if (doc && win) {
+        // Pass events directly to iframe's window object
+        win.__RRWEB_EVENTS__ = clonedEvents;
+
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/rrweb-player@2.1.0/dist/style.css" />
+            <script src="https://cdn.jsdelivr.net/npm/rrweb-player@2.1.0/dist/index.js"></script>
+            <style>
+              body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #f8fafc; font-family: sans-serif; }
+              #player-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+              .rr-player { box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+            </style>
+          </head>
+          <body>
+            <div id="player-container"></div>
+            <script>
+              window.onload = () => {
+                try {
+                  const events = window.__RRWEB_EVENTS__;
+                  if (!events || events.length === 0) return;
+                  
+                  new rrwebPlayer({
+                    target: document.getElementById('player-container'),
+                    props: {
+                      events: events,
+                      autoPlay: true,
+                      showController: true,
+                      autoScale: true,
+                      width: window.innerWidth - 40,
+                      height: window.innerHeight - 40
+                    }
+                  });
+                } catch(e) {
+                  console.error('Player error:', e);
+                  document.body.innerHTML = '<div style="color:red;padding:20px;">Error rendering player: ' + e.message + '</div>';
+                }
+              };
+            </script>
+          </body>
+          </html>
+        `;
+        
+        doc.open();
+        doc.write(html);
+        doc.close();
+      }
 
     } catch (err) {
       console.error(err);
       setPlayerError('Failed to initialize playback. Events may be corrupted.');
     }
-
-    return () => {
-      if (playerRef.current) {
-        try {
-          if (typeof playerRef.current.pause === 'function') playerRef.current.pause();
-          if (typeof playerRef.current.$destroy === 'function') playerRef.current.$destroy();
-        } catch(e) {
-          console.warn(e);
-        }
-      }
-    };
   }, [recording]);
 
   return (
@@ -123,25 +134,12 @@ export default function SessionReplayPage() {
             </div>
           )}
 
-          {/* Debug Overlay */}
-          {recording && recording.events && (
-            <div className="absolute top-0 right-0 z-50 bg-black/80 text-green-400 p-2 text-[10px] font-mono rounded-bl-lg pointer-events-none whitespace-pre">
-              {(() => {
-                try {
-                  const evts = typeof recording.events === 'string' ? JSON.parse(recording.events) : recording.events;
-                  return `Total Events: ${evts.length}\nTypes: ${evts.slice(0, 10).map(e => e.type).join(', ')}`;
-                } catch(e) { return 'Parse Error'; }
-              })()}
-            </div>
-          )}
-
-          {/* Player Container - Taking full space robustly */}
-          <div className="relative w-full h-full bg-slate-50 overflow-hidden flex-1">
-            <div 
-              ref={containerRef} 
-              className="absolute inset-0 w-full h-full"
-            />
-          </div>
+          {/* Player Iframe - 100% Isolated to prevent React/Tailwind/Vite conflicts */}
+          <iframe 
+            ref={iframeRef} 
+            className="w-full h-full border-none bg-slate-50"
+            title="Session Replay Player"
+          />
         </div>
       </div>
     </div>
