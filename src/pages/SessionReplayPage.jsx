@@ -32,43 +32,12 @@ export default function SessionReplayPage() {
         throw new Error('Invalid events array');
       }
 
-      // PATCH: Restore the 3D model iframe src for OLD recordings where it was stripped!
-      const patchNode = (node) => {
-        if (node && node.tagName === 'iframe' && node.attributes) {
-          if (node.attributes.id === 'preview-iframe' || node.attributes.id === 'preview-iframe2' || node.attributes.class?.includes('preview-iframe')) {
-            node.attributes.src = 'https://playcanv.as/e/p/QIG7fh8C/';
-            node.attributes.sandbox = 'allow-scripts allow-same-origin allow-popups allow-pointer-lock'; // Required for WebGL
-          }
-        }
-        if (node && node.childNodes) {
-          node.childNodes.forEach(patchNode);
-        }
-      };
-
-      evts.forEach(evt => {
-        if (evt.type === 2 && evt.data && evt.data.node) { // FullSnapshot
-          patchNode(evt.data.node);
-        } else if (evt.type === 3 && evt.data && evt.data.adds) { // Incremental adds
-          evt.data.adds.forEach(add => add.node && patchNode(add.node));
-        } else if (evt.type === 3 && evt.data && evt.data.attributes) { // Incremental attributes
-          evt.data.attributes.forEach(attr => {
-            if (attr.attributes && typeof attr.attributes.id === 'string' && attr.attributes.id.includes('preview-iframe')) {
-               attr.attributes.src = 'https://playcanv.as/e/p/QIG7fh8C/';
-            }
-          });
-        }
-      });
-
       containerRef.current.innerHTML = ''; // Clean container
 
       const replayer = new Replayer(evts, {
         root: containerRef.current,
         unpackFn: null,
-        UNSAFE_replayCanvas: true, // Just in case
       });
-
-      // Override iframe sandbox behavior natively in rrweb if possible
-      replayer.config.sandbox = 'allow-scripts allow-same-origin allow-popups allow-pointer-lock';
 
       // Scale player to fit container perfectly using absolute centering
       const padding = 32; 
@@ -97,20 +66,6 @@ export default function SessionReplayPage() {
       const metaData = replayer.getMetaData();
       setTotalTime(metaData.totalTime);
       setCurrentTime(0);
-
-      // Listen for custom events to replicate 3D model configuration changes!
-      replayer.on('custom-event', (e) => {
-        if (e.data && e.data.tag === 'iframe-post-message') {
-          const iframes = containerRef.current.querySelectorAll('iframe');
-          iframes.forEach(iframe => {
-            try {
-              if (iframe.contentWindow) {
-                iframe.contentWindow.postMessage(e.data.payload.message, '*');
-              }
-            } catch (err) {}
-          });
-        }
-      });
 
       // Auto play
       replayer.play();
