@@ -10,7 +10,16 @@ const COLORS = {
   STX: '#0EA5E9',
   HHX: '#7C3AED',
   HTX: '#10B981',
-  HF: '#F59E0B'
+  HF: '#F59E0B',
+  EUD: '#EF4444',
+  EUX: '#EC4899',
+  'SOSU Assistent': '#14B8A6',
+  'SOSU Hjælper': '#06B6D4',
+  'Pædagog': '#F97316',
+  PAU: '#6366F1',
+  Kosmetolog: '#F43F5E',
+  Frisør: '#D946EF',
+  Ernæringsassistent: '#84CC16'
 };
 
 const CustomTooltip = ({ active, payload, label }) => {

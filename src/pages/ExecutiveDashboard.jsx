@@ -61,7 +61,12 @@ export default function ExecutiveDashboard() {
     ? `${Number(data.overallConversionRate).toFixed(1)}%`
     : '—';
 
-  const visitorsTrend = trendData?.trend?.map(d => ({ value: d.STX + d.HHX + d.HTX + d.HF })) || [];
+  const visitorsTrend = trendData?.trend?.map(d => {
+    const total = Object.keys(d)
+      .filter(k => k !== 'date' && k !== 'Premium' && k !== 'Standard')
+      .reduce((sum, k) => sum + d[k], 0);
+    return { value: total };
+  }) || [];
   const convTrend = visitorsTrend.map(d => ({ value: d.value * (Math.random() * 0.3 + 0.1) }));
   const crTrend = convTrend.map((d, i) => ({ value: visitorsTrend[i].value > 0 ? d.value / visitorsTrend[i].value : 0 }));
   const revenueTrend = visitorsTrend.map(d => ({ value: d.value * (Math.random() * 500 + 100) }));

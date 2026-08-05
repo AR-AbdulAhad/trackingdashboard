@@ -181,6 +181,22 @@ const VisitorDetailPanel = ({ visitorId, onClose }) => {
   );
 };
 
+const eduBadgeMap = {
+  'STX': 'badge-blue',
+  'HHX': 'badge-purple',
+  'HTX': 'badge-amber',
+  'HF': 'badge-emerald',
+  'EUD': 'badge-red',
+  'EUX': 'badge-pink',
+  'SOSU Assistent': 'badge-teal',
+  'SOSU Hjælper': 'badge-cyan',
+  'Pædagog': 'badge-orange',
+  'PAU': 'badge-indigo',
+  'Kosmetolog': 'badge-rose',
+  'Frisør': 'badge-fuchsia',
+  'Ernæringsassistent': 'badge-lime'
+};
+
 export default function VisitorsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -236,6 +252,15 @@ export default function VisitorsPage() {
               <option value="HHX">HHX</option>
               <option value="HTX">HTX</option>
               <option value="HF">HF</option>
+              <option value="EUD">EUD</option>
+              <option value="EUX">EUX</option>
+              <option value="SOSU Assistent">SOSU Assistent</option>
+              <option value="SOSU Hjælper">SOSU Hjælper</option>
+              <option value="Pædagog">Pædagog</option>
+              <option value="PAU">PAU</option>
+              <option value="Kosmetolog">Kosmetolog</option>
+              <option value="Frisør">Frisør</option>
+              <option value="Ernæringsassistent">Ernæringsassistent</option>
             </select>
           </div>
         </div>
@@ -284,7 +309,7 @@ export default function VisitorsPage() {
                     </td>
                     <td className="p-4">
                       {v.educationType ? (
-                        <span className={`badge ${v.educationType === 'STX' ? 'badge-blue' : v.educationType === 'HHX' ? 'badge-purple' : 'badge-amber'}`}>
+                        <span className={`badge ${eduBadgeMap[v.educationType] || 'bg-slate-100 text-slate-700'}`}>
                           {v.educationType}
                         </span>
                       ) : <span className="text-slate-400 text-sm">—</span>}
