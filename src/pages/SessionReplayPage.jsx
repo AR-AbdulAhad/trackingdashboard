@@ -98,6 +98,20 @@ export default function SessionReplayPage() {
       setTotalTime(metaData.totalTime);
       setCurrentTime(0);
 
+      // Listen for custom events to replicate 3D model configuration changes!
+      replayer.on('custom-event', (e) => {
+        if (e.data && e.data.tag === 'iframe-post-message') {
+          const iframes = containerRef.current.querySelectorAll('iframe');
+          iframes.forEach(iframe => {
+            try {
+              if (iframe.contentWindow) {
+                iframe.contentWindow.postMessage(e.data.payload.message, '*');
+              }
+            } catch (err) {}
+          });
+        }
+      });
+
       // Auto play
       replayer.play();
       setIsPlaying(true);
