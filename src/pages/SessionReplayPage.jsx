@@ -47,12 +47,19 @@ export default function SessionReplayPage() {
 
       containerRef.current.innerHTML = '';
 
-      // Initialize new player with minimal configuration
+      // Initialize new player with full configuration
+      const containerWidth = containerRef.current.clientWidth || 1024;
+      const containerHeight = containerRef.current.clientHeight || 576;
+      
       playerRef.current = new rrwebPlayer({
         target: containerRef.current,
         props: {
           events: evts,
-          autoPlay: true
+          autoPlay: true,
+          showController: true,
+          width: containerWidth,
+          height: containerHeight,
+          autoScale: true,
         },
       });
 
