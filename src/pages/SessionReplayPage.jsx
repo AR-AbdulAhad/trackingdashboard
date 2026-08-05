@@ -2,13 +2,17 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getRecordingPlayback } from '../lib/api';
-import { ArrowLeft, Loader2, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, PlayCircle, PauseCircle } from 'lucide-react';
+import { Replayer } from 'rrweb';
+import 'rrweb/dist/rrweb.min.css';
 
 export default function SessionReplayPage() {
   const { recordingId } = useParams();
   const navigate = useNavigate();
-  const iframeRef = useRef(null);
+  const containerRef = useRef(null);
+  const replayerRef = useRef(null);
   const [playerError, setPlayerError] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const { data: recording, isLoading, error } = useQuery({
     queryKey: ['recording', recordingId],
@@ -17,80 +21,72 @@ export default function SessionReplayPage() {
   });
 
   useEffect(() => {
-    if (!recording || !recording.events || !iframeRef.current) return;
+    if (!recording || !recording.events || !containerRef.current) return;
 
     try {
-      let evts = typeof recording.events === 'string' 
-        ? JSON.parse(recording.events) 
-        : recording.events;
+      const evts = typeof recording.events === 'string' ? JSON.parse(recording.events) : recording.events;
       
       if (!Array.isArray(evts) || evts.length < 2) {
         throw new Error('Invalid events array');
       }
 
-      // Deep clone to prevent rrweb from mutating the React Query cache!
-      const clonedEvents = JSON.parse(JSON.stringify(evts));
+      containerRef.current.innerHTML = ''; // Clean container
 
-      // Pass events via parent window so they survive doc.write()
-      window.__CURRENT_RECORDING_EVENTS__ = clonedEvents;
+      const replayer = new Replayer(evts, {
+        root: containerRef.current,
+        unpackFn: null,
+      });
 
-      const doc = iframeRef.current.contentDocument;
+      // Scale player to fit container perfectly
+      const containerWidth = containerRef.current.clientWidth;
+      const containerHeight = containerRef.current.clientHeight;
+      const metaEvent = evts.find(e => e.type === 4);
       
-      if (doc) {
-        const html = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <link rel="stylesheet" href="https://unpkg.com/rrweb-player@2.1.0/dist/style.css" />
-            <style>
-              body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #f8fafc; font-family: sans-serif; }
-              #player-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-              .rr-player { box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
-            </style>
-          </head>
-          <body>
-            <div id="player-container"></div>
-            <script src="https://unpkg.com/rrweb-player@2.1.0/dist/rrweb-player.umd.cjs"></script>
-            <script>
-              setTimeout(() => {
-                try {
-                  const events = window.parent.__CURRENT_RECORDING_EVENTS__;
-                  if (!events || events.length === 0) return;
-                  
-                  const Player = window.rrwebPlayer.default || window.rrwebPlayer;
-                  
-                  new Player({
-                    target: document.getElementById('player-container'),
-                    props: {
-                      events: events,
-                      autoPlay: true,
-                      showController: true,
-                      autoScale: true,
-                      width: window.innerWidth - 40,
-                      height: window.innerHeight - 40
-                    }
-                  });
-                } catch(e) {
-                  console.error('Player error:', e);
-                  document.body.innerHTML = '<div style="color:red;padding:20px;">Error rendering player: ' + e.message + '</div>';
-                }
-              }, 100);
-            </script>
-          </body>
-          </html>
-        `;
+      if (metaEvent && metaEvent.data) {
+        const recordWidth = metaEvent.data.width;
+        const recordHeight = metaEvent.data.height;
+        const scaleX = containerWidth / recordWidth;
+        const scaleY = containerHeight / recordHeight;
+        const scale = Math.min(scaleX, scaleY, 1); 
         
-        doc.open();
-        doc.write(html);
-        doc.close();
+        replayer.wrapper.style.transform = `scale(${scale})`;
+        replayer.wrapper.style.transformOrigin = 'center center';
       }
+
+      replayerRef.current = replayer;
+      
+      // Auto play
+      replayer.play();
+      setIsPlaying(true);
+
+      replayer.on('finish', () => {
+        setIsPlaying(false);
+      });
 
     } catch (err) {
       console.error(err);
       setPlayerError('Failed to initialize playback. Events may be corrupted.');
     }
+
+    return () => {
+      if (replayerRef.current) {
+        try {
+          replayerRef.current.pause();
+          replayerRef.current.destroy();
+        } catch(e) {}
+      }
+    };
   }, [recording]);
+
+  const togglePlay = () => {
+    if (!replayerRef.current) return;
+    if (isPlaying) {
+      replayerRef.current.pause();
+    } else {
+      replayerRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
 
   return (
     <div className="flex flex-col h-screen bg-slate-100">
@@ -135,12 +131,22 @@ export default function SessionReplayPage() {
             </div>
           )}
 
-          {/* Player Iframe - 100% Isolated to prevent React/Tailwind/Vite conflicts */}
-          <iframe 
-            ref={iframeRef} 
-            className="w-full h-full border-none bg-slate-50"
-            title="Session Replay Player"
-          />
+          {/* The Custom Player Container */}
+          <div className="flex-1 relative overflow-hidden bg-slate-50 flex items-center justify-center p-4" ref={containerRef}>
+             {/* rrweb will inject iframe here */}
+          </div>
+          
+          {/* Custom Controls */}
+          {recording && !playerError && (
+            <div className="h-16 bg-white border-t border-slate-200 flex items-center px-6 gap-4 shrink-0 z-20">
+               <button onClick={togglePlay} className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 shadow-md transition-transform hover:scale-105">
+                 {isPlaying ? <PauseCircle className="w-6 h-6" fill="currentColor" /> : <PlayCircle className="w-6 h-6" fill="currentColor" />}
+               </button>
+               <div className="text-sm font-semibold text-slate-700 bg-slate-100 px-4 py-2 rounded-lg border border-slate-200">
+                  {isPlaying ? 'Playing Session' : 'Session Paused'}
+               </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
