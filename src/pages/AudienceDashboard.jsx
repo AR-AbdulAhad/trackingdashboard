@@ -9,7 +9,7 @@ import {
 import { Users, GraduationCap, School, CalendarDays, Package } from 'lucide-react';
 
 const COLORS = ['#0EA5E9', '#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16'];
-const PIE_COLORS = ['#0EA5E9', '#F59E0B'];
+const PIE_COLORS = ['#0EA5E9', '#10B981', '#7C3AED', '#F59E0B'];
 
 const ChartCard = ({ title, icon: Icon, children }) => (
   <div className="card animate-fade-in flex flex-col h-[380px]">
@@ -62,6 +62,8 @@ export default function AudienceDashboard() {
   const packageData = Object.entries(data?.byPackage || {})
     .map(([name, value]) => ({ name: t(name.charAt(0).toUpperCase() + name.slice(1)), value }));
 
+  const hasPackageData = packageData.some(p => p.value > 0);
+
   const Skeleton = () => (
     <div className="w-full h-full bg-slate-50/50 rounded-xl animate-pulse border border-slate-100 flex items-center justify-center">
       <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div>
@@ -104,11 +106,11 @@ export default function AudienceDashboard() {
 
         {/* Package Preference Pie */}
         <ChartCard title={t('Package Preference Split')} icon={Package}>
-          {isLoading ? <Skeleton /> : packageData.length ? (
+          {isLoading ? <Skeleton /> : hasPackageData ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={packageData}
+                  data={packageData.filter(p => p.value > 0)}
                   cx="50%" cy="45%"
                   innerRadius={70}
                   outerRadius={110}
@@ -117,7 +119,7 @@ export default function AudienceDashboard() {
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   labelLine={{ stroke: '#CBD5E1', strokeWidth: 1 }}
                 >
-                  {packageData.map((_, i) => (
+                  {packageData.filter(p => p.value > 0).map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
                 </Pie>

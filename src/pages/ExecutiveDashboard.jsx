@@ -63,7 +63,7 @@ export default function ExecutiveDashboard() {
 
   const visitorsTrend = trendData?.trend?.map(d => {
     const total = Object.keys(d)
-      .filter(k => k !== 'date' && k !== 'Premium' && k !== 'Standard')
+      .filter(k => k !== 'date' && k !== 'Premium' && k !== 'Luksus' && k !== 'Standard' && k !== 'Basic')
       .reduce((sum, k) => sum + d[k], 0);
     return { value: total };
   }) || [];
@@ -149,8 +149,10 @@ export default function ExecutiveDashboard() {
                   contentStyle={{ backgroundColor: 'var(--tooltip-bg)', borderColor: 'var(--tooltip-border)', borderRadius: '12px', color: 'var(--tooltip-text)', fontWeight: 'bold' }}
                 />
                 <XAxis dataKey="date" hide />
-                <Bar dataKey="Premium" stackId="a" fill="#0EA5E9" radius={[0,0,4,4]} />
-                <Bar dataKey="Standard" stackId="a" fill="#7C3AED" radius={[4,4,0,0]} />
+                <Bar dataKey="Premium" stackId="a" fill="#0EA5E9" radius={[0,0,0,0]} />
+                <Bar dataKey="Luksus" stackId="a" fill="#10B981" radius={[0,0,0,0]} />
+                <Bar dataKey="Standard" stackId="a" fill="#7C3AED" radius={[0,0,0,0]} />
+                <Bar dataKey="Basic" stackId="a" fill="#F59E0B" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

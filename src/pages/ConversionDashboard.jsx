@@ -85,7 +85,7 @@ export default function ConversionDashboard() {
         </ChartCard>
 
         {/* Package CR */}
-        <ChartCard title={t('Premium vs Standard Performance')} icon={Package}>
+        <ChartCard title={t('Package Conversion Performance')} icon={Package}>
           {isLoading ? <Skeleton /> : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={pkgData} margin={{ top: 10, right: 10, bottom: 20, left: -20 }}>
@@ -95,7 +95,7 @@ export default function ConversionDashboard() {
                 <Tooltip content={<CustomTooltip t={t} />} cursor={{ fill: 'rgba(16,185,129,0.05)' }} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60}>
                   {pkgData.map((_, i) => (
-                    <Cell key={i} fill={i === 0 ? '#10B981' : '#64748B'} />
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Bar>
               </BarChart>

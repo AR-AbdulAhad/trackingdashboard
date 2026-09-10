@@ -222,7 +222,7 @@ export default function Layout() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50">
+          <main className="flex-1 overflow-y-auto p-2 md:p-4 bg-slate-50">
             <Outlet />
           </main>
         </div>
