@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getVisitors, getVisitorDetails, getRecordingPlayback } from '../lib/api';
 import PageHeader from '../components/PageHeader';
-import { 
-  Search, Filter, ChevronLeft, ChevronRight, ShoppingBag, Eye, Database, 
-  PlayCircle, CheckCircle, AlertCircle, Clock, Percent, Layers, Tag, 
-  ChevronDown, ChevronUp 
+import {
+  Search, Filter, ChevronLeft, ChevronRight, ShoppingBag, Eye, Database,
+  PlayCircle, CheckCircle, AlertCircle, Clock, Percent, Layers, Tag,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
@@ -45,21 +45,22 @@ export const formatEducation = (type) => {
 
 export const CONFIGURATOR_STEPS = [
   { id: 1, name: 'KOKARDE', label: 'Kokarde', aliases: ['KOKARDE'] },
-  { id: 2, name: 'EMBLEM', label: 'Emblem', aliases: ['EMBLEM'] },
-  { id: 3, name: 'BÅND', label: 'Bånd', aliases: ['BÅND', 'UDDANNELSESBÅND', 'UDDANNELSESBAND', 'BAND'] },
-  { id: 4, name: 'FOER', label: 'Foer', aliases: ['FOER', 'FODER'] },
-  { id: 5, name: 'SKYGGE', label: 'Skygge', aliases: ['SKYGGE'] },
-  { id: 6, name: 'HUESNOR', label: 'Huesnor', aliases: ['HUESNOR', 'SNOR'] },
-  { id: 7, name: 'BRODERI', label: 'Broderi', aliases: ['BRODERI'] },
-  { id: 8, name: 'TILBEHØR', label: 'Tilbehør', aliases: ['TILBEHØR', 'TILBEHOER', 'TILBEH'] },
+  { id: 2, name: 'UDDANNELSESBÅND', label: 'Bånd', aliases: ['UDDANNELSESBÅND', 'BÅND', 'UDDANNELSESBAND', 'BAND', 'EMBLEM'] },
+  { id: 3, name: 'BRODERI', label: 'Broderi', aliases: ['BRODERI'] },
+  { id: 4, name: 'BETRÆK', label: 'Betræk', aliases: ['BETRÆK', 'BETRAEK', 'COVER'] },
+  { id: 5, name: 'SKYGGE', label: 'Skygge', aliases: ['SKYGGE', 'SHADE'] },
+  { id: 6, name: 'FOER', label: 'Foer', aliases: ['FOER', 'FODER', 'LINING'] },
+  { id: 7, name: 'EKSTRABETRÆK', label: 'Ekstrabetræk', aliases: ['EKSTRABETRÆK', 'EKSTRABETRAEK', 'EXTRA_COVER', 'HUESNOR', 'SNOR'] },
+  { id: 8, name: 'TILBEHØR', label: 'Tilbehør', aliases: ['TILBEHØR', 'TILBEHOER', 'TILBEH', 'ACCESSORIES'] },
   { id: 9, name: 'STØRRELSE', label: 'Størrelse', aliases: ['STØRRELSE', 'STOERRELSE', 'SIZE'] },
 ];
 
 export const normalizeStepName = (name) => {
   if (!name) return '';
   const upper = String(name).trim().toUpperCase();
-  const step = CONFIGURATOR_STEPS.find(s => 
-    s.name === upper || s.aliases.some(a => upper.includes(a) || a.includes(upper))
+  // Exact name match first, then exact alias match only (no substring to avoid false matches)
+  const step = CONFIGURATOR_STEPS.find(s =>
+    s.name === upper || s.aliases.some(a => upper === a)
   );
   return step ? step.name : upper;
 };
@@ -133,7 +134,7 @@ const EventTimelineCard = ({ event, formatDateTime }) => {
               Step {p.step_index || 1} / {p.total_steps || 9}: <span className="text-sky-600">{p.step_name}</span>
             </span>
             <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-              {p.step_percentage || p.activity_percentage || 0}% Done
+              {p.percentage ?? 0}% Done
             </span>
           </div>
 
@@ -166,7 +167,7 @@ const EventTimelineCard = ({ event, formatDateTime }) => {
         <div className="mt-2 bg-rose-50 border border-rose-100 p-3 rounded-xl text-xs space-y-1.5">
           <div className="flex justify-between font-bold text-rose-800">
             <span>Left at: {p.last_step || 'Unknown Step'}</span>
-            <span>{p.percentage_completed || 0}% Completed</span>
+            <span>{p.percentage ?? p.percentage_completed ?? 0}% Completed</span>
           </div>
           {p.total_time_spent !== undefined && (
             <p className="text-rose-600 font-medium">
@@ -254,14 +255,22 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
   const visitedNormalized = new Set(visitedStepsList.map(s => normalizeStepName(s)));
   const skippedNormalized = new Set(skippedStepsList.map(s => normalizeStepName(s)));
 
-  // Each page visited is 11% (1 page = 11%, 2 pages = 22%, 9 pages = 100%)
-  const visitedCount = visitedNormalized.size || visitedStepsList.length;
+  const stepStatusList = CONFIGURATOR_STEPS.map(step => {
+    const isVisited = visitedNormalized.has(step.name) || step.aliases?.some(a => visitedNormalized.has(a));
+    const isSkipped = !isVisited;
+    return {
+      ...step,
+      isVisited,
+      isSkipped,
+    };
+  });
+
+  const actualSkippedSteps = stepStatusList.filter(s => s.isSkipped);
+  const visitedCount = stepStatusList.filter(s => s.isVisited).length || visitedNormalized.size || visitedStepsList.length;
   let maxPct = stepTracking?.percentage;
   if (typeof maxPct !== 'number' || maxPct === 0) {
     maxPct = visitedCount >= 9 || hasPurchased ? 100 : visitedCount * 11;
   }
-  if (hasPurchased) maxPct = 100;
-
   let totalConfigTime = 0;
   if (abandonEvent?.eventParams?.total_time_spent) {
     totalConfigTime = abandonEvent.eventParams.total_time_spent;
@@ -270,16 +279,6 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
   }
 
   const lastStep = stepTracking?.lastStepVisited || abandonEvent?.eventParams?.last_step || (stepViews.length > 0 ? stepViews[0].eventParams?.step_name : null);
-
-  const stepStatusList = CONFIGURATOR_STEPS.map(step => {
-    const isVisited = visitedNormalized.has(step.name);
-    const isSkipped = !isVisited && skippedNormalized.has(step.name);
-    return {
-      ...step,
-      isVisited,
-      isSkipped,
-    };
-  });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -290,21 +289,20 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
             <Layers className="w-5 h-5 text-sky-600" />
             <h3 className="font-bold text-slate-800 text-sm">Configurator Activity & Journey</h3>
           </div>
-          <span className={`badge font-bold px-3 py-1 rounded-full text-xs ${
-            hasPurchased 
-              ? 'badge-green' 
-              : isCheckedOut 
-                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                : abandonEvent 
-                  ? 'bg-amber-100 text-amber-800' 
+          <span className={`badge font-bold px-3 py-1 rounded-full text-xs ${hasPurchased
+              ? 'badge-green'
+              : isCheckedOut
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                : abandonEvent
+                  ? 'bg-amber-100 text-amber-800'
                   : 'bg-sky-100 text-sky-800'
-          }`}>
-            {hasPurchased 
-              ? '100% Completed & Purchased' 
-              : isCheckedOut 
+            }`}>
+            {hasPurchased
+              ? '100% Completed & Purchased'
+              : isCheckedOut
                 ? `Checked Out (${maxPct}% Funnel • ${visitedCount}/9 Pages)`
-                : abandonEvent 
-                  ? `Left at ${lastStep || 'Step'} (${maxPct}% Activity)` 
+                : abandonEvent
+                  ? `Left at ${lastStep || 'Step'} (${maxPct}% Activity)`
                   : `${maxPct}% Activity Reached (${visitedCount}/9 Pages)`}
           </span>
         </div>
@@ -312,7 +310,7 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
         {/* Progress Bar */}
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs font-bold text-slate-600">
-            <span>Funnel Progress ({visitedCount} pages visited × 11%)</span>
+            <span>Funnel Progress </span>
             <span className="text-sky-600 font-extrabold">{maxPct}%</span>
           </div>
           <div className="h-2.5 bg-slate-200/70 rounded-full overflow-hidden p-0.5">
@@ -358,9 +356,6 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
                         {step.id}. {step.label}
                       </span>
                     </div>
-                    <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
-                      +11%
-                    </span>
                   </div>
                 );
               } else if (step.isSkipped) {
@@ -416,19 +411,15 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
           </div>
           <div className="p-2.5 bg-white rounded-xl border border-slate-100">
             <span className="text-[10px] font-bold text-slate-400 uppercase block">Skipped</span>
-            <span className={`text-xs font-extrabold ${skippedStepsList.length > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
-              {skippedStepsList.length > 0 ? `${skippedStepsList.length} Steps` : '0 Steps'}
+            <span className={`text-xs font-extrabold ${actualSkippedSteps.length > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+              {actualSkippedSteps.length > 0 ? `${actualSkippedSteps.length} Steps` : '0 Steps'}
             </span>
           </div>
         </div>
 
-        {skippedStepsList.length > 0 && (
+        {actualSkippedSteps.length > 0 && (
           <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-800">
-            <span className="font-bold">Skipped Pages:</span> {skippedStepsList.map(s => {
-              const norm = normalizeStepName(s);
-              const found = CONFIGURATOR_STEPS.find(c => c.name === norm);
-              return found ? found.label : s;
-            }).join(', ')}
+            <span className="font-bold">Skipped Pages:</span> {actualSkippedSteps.map(s => s.label).join(', ')}
           </div>
         )}
       </div>
@@ -530,11 +521,10 @@ const VisitorDetailPanel = ({ visitorId, onClose }) => {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`flex-1 py-2 text-sm font-bold rounded-lg capitalize transition-all relative ${
-                      activeTab === tab
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg capitalize transition-all relative ${activeTab === tab
                         ? 'bg-white text-sky-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                      }`}
                   >
                     {tab === 'recordings' && (
                       <span className="absolute top-0 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
