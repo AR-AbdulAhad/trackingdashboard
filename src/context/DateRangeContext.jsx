@@ -7,18 +7,24 @@ export const useDateRange = () => useContext(DateRangeContext);
 
 export function DateRangeProvider({ children }) {
   const [from, setFrom] = useState(() => {
-    const saved = localStorage.getItem('sl_date_from');
-    return saved || format(startOfMonth(new Date()), 'yyyy-MM-dd');
+    return localStorage.getItem('sl_date_from') ?? '';
   });
   
   const [to, setTo] = useState(() => {
-    const saved = localStorage.getItem('sl_date_to');
-    return saved || format(endOfMonth(new Date()), 'yyyy-MM-dd');
+    return localStorage.getItem('sl_date_to') ?? '';
   });
 
   useEffect(() => {
-    localStorage.setItem('sl_date_from', from);
-    localStorage.setItem('sl_date_to', to);
+    if (from) {
+      localStorage.setItem('sl_date_from', from);
+    } else {
+      localStorage.removeItem('sl_date_from');
+    }
+    if (to) {
+      localStorage.setItem('sl_date_to', to);
+    } else {
+      localStorage.removeItem('sl_date_to');
+    }
   }, [from, to]);
 
   return (

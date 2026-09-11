@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader';
 import {
   Search, Filter, ChevronLeft, ChevronRight, ShoppingBag, Eye, Database,
   PlayCircle, CheckCircle, AlertCircle, Clock, Percent, Layers, Tag,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, User, Mail, Phone, School, GraduationCap, Calendar, Sparkles
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
@@ -107,21 +107,21 @@ const EventTimelineCard = ({ event, formatDateTime }) => {
 
   return (
     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors">
-      <div className="flex justify-between items-start mb-2">
+      <div className="flex justify-between items-start">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${badgeColor} capitalize`}>
             {event.eventName?.replace(/_/g, ' ')}
           </span>
-          {p.package && (
+          {/* {p.package && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-50 text-sky-600 border border-sky-100 uppercase">
               {p.package}
             </span>
-          )}
-          {p.program && (
+          )} */}
+          {/* {p.program && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-600 border border-purple-100 uppercase">
               {p.program}
             </span>
-          )}
+          )} */}
         </div>
         <span className="text-xs text-slate-400 font-medium">{formatDateTime(event.createdAt)}</span>
       </div>
@@ -194,7 +194,7 @@ const EventTimelineCard = ({ event, formatDateTime }) => {
       )}
 
       {/* Raw Toggle */}
-      <button
+      {/* <button
         onClick={() => setShowRaw(!showRaw)}
         className="text-[11px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 mt-2.5 transition-colors"
       >
@@ -206,7 +206,7 @@ const EventTimelineCard = ({ event, formatDateTime }) => {
         <pre className="text-xs text-slate-500 mt-2 bg-white p-2.5 rounded-lg border border-slate-100 overflow-x-auto">
           {JSON.stringify(event.eventParams, null, 2)}
         </pre>
-      )}
+      )} */}
     </div>
   );
 };
@@ -280,9 +280,88 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
 
   const lastStep = stepTracking?.lastStepVisited || abandonEvent?.eventParams?.last_step || (stepViews.length > 0 ? stepViews[0].eventParams?.step_name : null);
 
+  const totalSpentAmount = Array.isArray(data.orders)
+    ? data.orders.reduce((sum, o) => sum + (Number(o.value) || 0), 0)
+    : 0;
+  const currency = data.orders?.[0]?.currency || 'DKK';
+
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Configurator Activity & Journey Intelligence Card */}
+      {/* 1. Visitor Data & Profile Card */}
+      <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+        {(data.name || data.email || data.phone || data.school) && (
+          <div className="p-3.5 rounded-xl bg-gradient-to-r from-slate-50 via-sky-50/40 to-slate-50 border border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-sky-600 text-white font-extrabold flex items-center justify-center text-xs shadow-sm shrink-0">
+                {(data.name || 'V').charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <span className="font-bold text-slate-900 text-sm block truncate">{data.name || 'Anonymous Visitor'}</span>
+                <span className="text-[10px] text-slate-400 font-medium">Verified Customer</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 flex-wrap text-slate-600">
+              {data.email && (
+                <div className="flex items-center gap-1.5 font-medium">
+                  <Mail className="w-3.5 h-3.5 text-sky-500" />
+                  <a href={`mailto:${data.email}`} className="text-slate-700 hover:text-sky-600 hover:underline">{data.email}</a>
+                </div>
+              )}
+              {data.phone && (
+                <div className="flex items-center gap-1.5 font-medium">
+                  <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-slate-700">{data.phone}</span>
+                </div>
+              )}
+              {data.school && (
+                <div className="flex items-center gap-1.5 font-medium">
+                  <School className="w-3.5 h-3.5 text-purple-500" />
+                  <span className="text-slate-700 font-semibold">{data.school}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Key Metrics Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          
+
+          <div className="p-3 bg-slate-50/90 rounded-xl border border-slate-100">
+            <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Education</span>
+            {data.educationType ? (
+              <span className={`text-xs font-bold text-slate-700 block truncate`}>
+                {formatEducation(data.educationType)}
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-slate-400">—</span>
+            )}
+          </div>
+
+          <div className="p-3 bg-slate-50/90 rounded-xl border border-slate-100">
+            <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Package</span>
+            {data.packagePreference ? (
+              <span className={`text-xs font-bold text-slate-700 block truncate`}>
+                {data.packagePreference}
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-slate-400">—</span>
+            )}
+          </div>
+
+          <div className="p-3 bg-slate-50/90 rounded-xl border border-slate-100">
+            <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">School</span>
+            <span className="text-xs font-bold text-slate-700 block truncate" title={data.school || '—'}>
+              {data.school || '—'}
+            </span>
+          </div>
+
+         
+        </div>
+      </div>
+
+      {/* 2. Configurator Activity & Journey Intelligence Card */}
       <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-sky-50/40 border border-sky-100 shadow-sm space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
@@ -290,12 +369,12 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
             <h3 className="font-bold text-slate-800 text-sm">Configurator Activity & Journey</h3>
           </div>
           <span className={`badge font-bold px-3 py-1 rounded-full text-xs ${hasPurchased
-              ? 'badge-green'
-              : isCheckedOut
-                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                : abandonEvent
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-sky-100 text-sky-800'
+            ? 'badge-green'
+            : isCheckedOut
+              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+              : abandonEvent
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-sky-100 text-sky-800'
             }`}>
             {hasPurchased
               ? '100% Completed & Purchased'
@@ -424,7 +503,7 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
           <p className="text-xs font-bold text-slate-500 uppercase">First Visit</p>
           <p className="text-sm font-bold text-slate-800 mt-1">{formatDate(data.firstVisitAt)}</p>
@@ -438,14 +517,21 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
           <p className="text-sm font-bold text-slate-800 mt-1">{data.visitCount}</p>
         </div>
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
-          <p className="text-xs font-bold text-emerald-600 uppercase">Purchases</p>
-          <p className="text-sm font-bold text-emerald-700 mt-1">{data.orders.length}</p>
+          <p className="text-xs font-bold text-emerald-600 uppercase">Total Spent</p>
+          <p className="text-sm font-extrabold text-emerald-700 mt-1">
+            {data.orders.reduce((sum, o) => sum + (Number(o.value) || 0), 0).toLocaleString()} {data.orders[0]?.currency || 'DKK'}
+          </p>
         </div>
       </div>
 
       {data.orders.length > 0 && (
-        <div>
-          <h3 className="font-bold text-slate-800 mb-3">Order History</h3>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-slate-800 text-sm">Order History ({data.orders.length})</h3>
+            <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg">
+              Total Revenue: {data.orders.reduce((sum, o) => sum + (Number(o.value) || 0), 0).toLocaleString()} {data.orders[0]?.currency || 'DKK'}
+            </span>
+          </div>
           <div className="space-y-3">
             {data.orders.map(order => {
               const formattedValue = typeof order.value === 'object' && order.value !== null
@@ -522,8 +608,8 @@ const VisitorDetailPanel = ({ visitorId, onClose }) => {
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={`flex-1 py-2 text-sm font-bold rounded-lg capitalize transition-all relative ${activeTab === tab
-                        ? 'bg-white text-sky-600 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-white text-sky-600 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
                       }`}
                   >
                     {tab === 'recordings' && (
@@ -662,10 +748,9 @@ export default function VisitorsPage() {
               <tr className="bg-slate-100 text-slate-500 text-xs uppercase tracking-wider font-bold">
                 <th className="p-4 font-bold">Visitor</th>
                 <th className="p-4 font-bold">Education</th>
-                {/* <th className="p-4 font-bold">School</th> */}
                 <th className="p-4 font-bold">Package</th>
                 <th className="p-4 font-bold">Visits</th>
-                {/* <th className="p-4 font-bold">Orders</th> */}
+                <th className="p-4 font-bold">Revenue</th>
                 <th className="p-4 font-bold">Last Active</th>
               </tr>
             </thead>
@@ -695,7 +780,12 @@ export default function VisitorsPage() {
                         <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 group-hover:bg-sky-100 group-hover:text-sky-600 transition-colors">
                           {v.visitorId.substring(0, 2).toUpperCase()}
                         </div>
-                        <span className="font-bold text-slate-800 text-sm max-w-[190px] truncate">{v.visitorId}</span>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 text-sm max-w-full [240px] truncate">{v.visitorId}</span>
+                          <div className="flex flex-row mt-1">
+                            <span className="text-slate-500 text-xs ">{v.name} </span>{v.email ? <span className="text-slate-500 text-xs "> • {v.email}</span> : null}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="p-4">
@@ -705,7 +795,6 @@ export default function VisitorsPage() {
                         </span>
                       ) : <span className="text-slate-400 text-sm">—</span>}
                     </td>
-                    {/* <td className="p-4 text-sm font-medium text-slate-600 max-w-[150px] truncate">{v.school || '—'}</td> */}
                     <td className="p-4">
                       {v.packagePreference ? (
                         <span className={`badge border ${pkgBadgeMap[v.packagePreference] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
@@ -714,13 +803,15 @@ export default function VisitorsPage() {
                       ) : <span className="text-slate-400 text-sm">—</span>}
                     </td>
                     <td className="p-4 text-sm font-bold text-slate-700">{v.visitCount}</td>
-                    {/* <td className="p-4">
-                      {v._count?.orders > 0 ? (
-                        <span className="badge badge-green flex items-center gap-1 w-max">
-                          <ShoppingBag className="w-3 h-3" /> {v._count.orders}
+                    <td className="p-4">
+                      {v.totalSpent > 0 ? (
+                        <span className="badge badge-green font-bold flex items-center gap-1 w-max shadow-sm ">
+                          <ShoppingBag className="w-3.5 h-3.5" /> {v.totalSpent.toLocaleString()} {v.currency || 'DKK'}
                         </span>
-                      ) : <span className="text-slate-400 text-sm">—</span>}
-                    </td> */}
+                      ) : (
+                        <span className="text-slate-400 text-sm ">—</span>
+                      )}
+                    </td>
                     <td className="p-4 text-xs font-medium text-slate-500">{formatDate(v.lastVisitAt)}</td>
                   </tr>
                 ))

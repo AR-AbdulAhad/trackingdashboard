@@ -6,30 +6,35 @@ import { useI18n } from '../context/I18nContext';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Megaphone, Target, ArrowRight, MousePointerClick } from 'lucide-react';
 
+import { formatEducation } from './VisitorsPage';
+
 const COLORS = {
   STX: '#0EA5E9',
   HHX: '#7C3AED',
   HTX: '#10B981',
   HF: '#F59E0B',
-  EUD: '#EF4444',
   EUX: '#EC4899',
-  'SOSU Assistent': '#14B8A6',
-  'SOSU Hjælper': '#06B6D4',
-  'Pædagog': '#F97316',
+  EUD: '#EF4444',
+  SOSUASSISTENT: '#14B8A6',
+  SOSUHJAELPER: '#06B6D4',
+  PAEDAGOG: '#F97316',
   PAU: '#6366F1',
-  Kosmetolog: '#F43F5E',
-  Frisør: '#D946EF',
-  Ernæringsassistent: '#84CC16'
+  KOSMETOLOG: '#F43F5E',
+  FRISOER: '#D946EF',
+  ERNAERINGSASSISTENT: '#84CC16',
+  STU: '#A855F7',
+  LANDMAND: '#10B981'
 };
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload?.length) {
+    const activePayload = payload.filter(p => (Number(p.value) || 0) > 0);
     return (
       <div className="glass text-slate-800 px-4 py-3 rounded-xl shadow-xl border border-slate-200 min-w-[150px]">
         <p className="font-bold text-sm mb-2 border-b border-slate-200 pb-1">{label}</p>
-        {payload.map(p => (
+        {(activePayload.length > 0 ? activePayload : payload.slice(0, 5)).map(p => (
           <div key={p.dataKey} className="flex items-center justify-between gap-4 text-xs font-semibold my-1">
-            <span style={{ color: p.color }}>{p.name}</span>
+            <span style={{ color: p.color }}>{formatEducation(p.dataKey)}</span>
             <span className="text-slate-600">{p.value}</span>
           </div>
         ))}
@@ -95,7 +100,7 @@ export default function MarketingDashboard() {
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748B' }} tickFormatter={v => v.slice(5)} axisLine={false} tickLine={false} dy={10} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 500, paddingTop: '10px' }} />
+                  <Legend formatter={formatEducation} wrapperStyle={{ fontSize: '12px', fontWeight: 500, paddingTop: '10px' }} />
                   {Object.entries(COLORS).map(([key, color]) => (
                     <Area key={key} type="monotone" dataKey={key} stackId="1" stroke={color} fill={`url(#color${key})`} strokeWidth={2} />
                   ))}

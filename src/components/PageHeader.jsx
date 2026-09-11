@@ -44,15 +44,22 @@ export default function PageHeader({ title, description, hideDateFilter = false 
       {!hideDateFilter && (
         <div className="flex flex-col items-end gap-3">
           <div className="flex items-center gap-2 bg-slate-100 rounded-xl p-1 shadow-inner">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                onClick={() => handlePreset(preset.days)}
-                className="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 hover:bg-white hover:shadow-sm transition-all"
-              >
-                {preset.label}
-              </button>
-            ))}
+            {PRESETS.map((preset) => {
+              const isAllTime = !from && !to && preset.days === null;
+              return (
+                <button
+                  key={preset.label}
+                  onClick={() => handlePreset(preset.days)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    isAllTime
+                      ? 'bg-white shadow-sm text-sky-600'
+                      : 'text-slate-600 hover:bg-white/80 hover:shadow-sm'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex items-center gap-2 bg-white border border-slate-200 p-1.5 rounded-xl shadow-sm">

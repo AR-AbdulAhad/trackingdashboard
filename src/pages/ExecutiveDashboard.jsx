@@ -64,12 +64,25 @@ export default function ExecutiveDashboard() {
   const visitorsTrend = trendData?.trend?.map(d => {
     const total = Object.keys(d)
       .filter(k => k !== 'date' && k !== 'Premium' && k !== 'Luksus' && k !== 'Standard' && k !== 'Basic')
-      .reduce((sum, k) => sum + d[k], 0);
+      .reduce((sum, k) => sum + (Number(d[k]) || 0), 0);
     return { value: total };
   }) || [];
-  const convTrend = visitorsTrend.map(d => ({ value: d.value * (Math.random() * 0.3 + 0.1) }));
-  const crTrend = convTrend.map((d, i) => ({ value: visitorsTrend[i].value > 0 ? d.value / visitorsTrend[i].value : 0 }));
-  const revenueTrend = visitorsTrend.map(d => ({ value: d.value * (Math.random() * 500 + 100) }));
+
+  const pkgTrend = trendData?.trend?.map(d => ({
+    value: (Number(d.Premium) || 0) + (Number(d.Luksus) || 0) + (Number(d.Standard) || 0) + (Number(d.Basic) || 0)
+  })) || [];
+
+  const convTrend = visitorsTrend.map((d, i) => ({
+    value: data?.totalConversions ? Math.round((d.value / (data.totalVisitors || 1)) * data.totalConversions) : 0
+  }));
+
+  const crTrend = visitorsTrend.map((d, i) => ({
+    value: d.value > 0 ? (convTrend[i]?.value || 0) / d.value : 0
+  }));
+
+  const revenueTrend = visitorsTrend.map((d, i) => ({
+    value: data?.totalRevenue ? Math.round((d.value / (data.totalVisitors || 1)) * data.totalRevenue) : 0
+  }));
 
   return (
     <div className="space-y-8 pb-10">
