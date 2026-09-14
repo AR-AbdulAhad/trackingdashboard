@@ -1,10 +1,12 @@
 import { useNotifications } from '../context/NotificationContext';
-import { X, Bell, ExternalLink, MousePointerClick, TrendingUp, Users } from 'lucide-react';
+import { X, Bell, ExternalLink, MousePointerClick, TrendingUp, Users, AlertTriangle } from 'lucide-react';
 
 const ICONS = {
   new_visitor: { icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
   new_conversion: { icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
   configurator_started: { icon: MousePointerClick, color: 'text-amber-500', bg: 'bg-amber-50' },
+  iframe_crash: { icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-50' },
+  iframe_stuck: { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50' },
 };
 
 export default function NotificationPanel({ isOpen, onClose }) {
