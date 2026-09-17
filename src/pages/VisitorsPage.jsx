@@ -95,9 +95,9 @@ const EventTimelineCard = ({ event, formatDateTime }) => {
   const p = event.eventParams || {};
   const isAbandoned = event.eventName === 'configurator_abandoned';
   const isStepView = event.eventName === 'configurator_step_view';
-  const isCompleted = event.eventName === 'configurator_completed' || event.eventName === 'purchase_completed';
+  const isCompleted = event.eventName === 'configurator_completed' || event.eventName === 'purchase_completed' || event.eventName === 'purchase';
   const isStarted = event.eventName === 'configurator_started';
-  const isCommerce = ['add_to_cart', 'checkout_started', 'purchase_completed'].includes(event.eventName);
+  const isCommerce = ['add_to_cart', 'checkout_started', 'purchase_completed', 'purchase'].includes(event.eventName);
   const isCrash = ['iframe_crash', 'iframe_stuck', 'playcanvas_crash'].includes(event.eventName);
 
   let badgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
@@ -260,7 +260,7 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
   const stepViews = events.filter(e => e.eventName === 'configurator_step_view');
   const abandonEvent = events.find(e => e.eventName === 'configurator_abandoned');
   const checkoutEvent = events.find(e => e.eventName === 'checkout_started' || e.eventName === 'add_to_cart');
-  const completedEvent = events.find(e => e.eventName === 'configurator_completed' || e.eventName === 'purchase_completed');
+  const completedEvent = events.find(e => e.eventName === 'configurator_completed' || e.eventName === 'purchase_completed' || e.eventName === 'purchase');
   const hasPurchased = data.orders?.some(o => o.status === 'purchased') || !!completedEvent;
   const isCheckedOut = Boolean(stepTracking?.checkedOut || checkoutEvent || hasPurchased);
 
