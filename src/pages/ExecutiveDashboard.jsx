@@ -10,36 +10,55 @@ import {
 import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, Tooltip, XAxis } from 'recharts';
 import { Link } from 'react-router-dom';
 
-const KpiCard = ({ label, value, sub, color, icon: Icon, sparklineData, suffix = '' }) => (
-  <div className={`kpi-card ${color} animate-fade-in group bg-white`}>
-    <div className="flex items-start justify-between relative z-10">
-      <div>
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">{label}</p>
-        <p className="text-3xl font-extrabold text-slate-800 brand-text">
-          {value ?? <span className="text-slate-300">—</span>}
-          {suffix && <span className="text-xl ml-1 text-slate-500 font-medium">{suffix}</span>}
-        </p>
-        {sub && <p className="text-xs text-slate-400 mt-2 font-medium">{sub}</p>}
+const KpiCard = ({ label, value, sub, color, icon: Icon, sparklineData, suffix = '', loading = false }) => {
+  if (loading) {
+    return (
+      <div className={`kpi-card ${color} bg-white animate-pulse relative overflow-hidden flex flex-col justify-between min-h-[148px]`}>
+        <div className="flex items-start justify-between relative z-10">
+          <div className="space-y-3 w-full pr-4">
+            <div className="h-3 w-28 bg-slate-200/80 rounded-md"></div>
+            <div className="h-8 w-32 bg-slate-200 rounded-lg"></div>
+            <div className="h-3 w-40 bg-slate-100 rounded-md"></div>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-slate-100/80 flex items-center justify-center shrink-0">
+            <div className="w-6 h-6 rounded-lg bg-slate-200/60"></div>
+          </div>
+        </div>
       </div>
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3"
-        style={{ background: color === 'blue' ? 'rgba(14,165,233,0.1)' : color === 'purple' ? 'rgba(124,58,237,0.1)' : color === 'green' ? 'rgba(16,185,129,0.1)' : color === 'emerald' ? 'rgba(52,211,153,0.1)' : 'rgba(245,158,11,0.1)' }}>
-        <Icon className="w-6 h-6" style={{ color: color === 'blue' ? '#0EA5E9' : color === 'purple' ? '#7C3AED' : color === 'green' ? '#10B981' : color === 'emerald' ? '#34D399' : '#F59E0B' }} />
+    );
+  }
+
+  return (
+    <div className={`kpi-card ${color} animate-fade-in group bg-white`}>
+      <div className="flex items-start justify-between relative z-10">
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">{label}</p>
+          <p className="text-3xl font-extrabold text-slate-800 brand-text">
+            {value ?? <span className="text-slate-300">—</span>}
+            {suffix && <span className="text-xl ml-1 text-slate-500 font-medium">{suffix}</span>}
+          </p>
+          {sub && <p className="text-xs text-slate-400 mt-2 font-medium">{sub}</p>}
+        </div>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3"
+          style={{ background: color === 'blue' ? 'rgba(14,165,233,0.1)' : color === 'purple' ? 'rgba(124,58,237,0.1)' : color === 'green' ? 'rgba(16,185,129,0.1)' : color === 'emerald' ? 'rgba(52,211,153,0.1)' : 'rgba(245,158,11,0.1)' }}>
+          <Icon className="w-6 h-6" style={{ color: color === 'blue' ? '#0EA5E9' : color === 'purple' ? '#7C3AED' : color === 'green' ? '#10B981' : color === 'emerald' ? '#34D399' : '#F59E0B' }} />
+        </div>
       </div>
+      
+      {sparklineData && (
+        <div className="absolute bottom-0 left-0 right-0 h-16 opacity-30 pointer-events-none transition-opacity group-hover:opacity-50">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={sparklineData}>
+              <Area type="monotone" dataKey="value" stroke="none" 
+                fill={color === 'blue' ? '#0EA5E9' : color === 'purple' ? '#7C3AED' : color === 'green' ? '#10B981' : color === 'emerald' ? '#34D399' : '#F59E0B'} 
+                fillOpacity={0.5} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
-    
-    {sparklineData && (
-      <div className="absolute bottom-0 left-0 right-0 h-16 opacity-30 pointer-events-none transition-opacity group-hover:opacity-50">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={sparklineData}>
-            <Area type="monotone" dataKey="value" stroke="none" 
-              fill={color === 'blue' ? '#0EA5E9' : color === 'purple' ? '#7C3AED' : color === 'green' ? '#10B981' : color === 'emerald' ? '#34D399' : '#F59E0B'} 
-              fillOpacity={0.5} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 export default function ExecutiveDashboard() {
   const { from, to } = useDateRange();
@@ -107,36 +126,40 @@ export default function ExecutiveDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <KpiCard
           label={t('Total Revenue')}
-          value={isLoading ? '…' : (data?.totalRevenue || 0).toLocaleString()}
+          value={(data?.totalRevenue || 0).toLocaleString()}
           suffix="DKK"
           sub={t('All-time generated revenue')}
           color="emerald"
           icon={DollarSign}
           sparklineData={revenueTrend}
+          loading={isLoading}
         />
         <KpiCard
           label={t('Total Visitors')}
-          value={isLoading ? '…' : data?.totalVisitors?.toLocaleString() ?? '0'}
+          value={data?.totalVisitors?.toLocaleString() ?? '0'}
           sub={t('Unique tracked visitors')}
           color="blue"
           icon={Users}
           sparklineData={visitorsTrend}
+          loading={isLoading}
         />
         <KpiCard
           label={t('Total Conversions')}
-          value={isLoading ? '…' : data?.totalConversions?.toLocaleString() ?? '0'}
+          value={data?.totalConversions?.toLocaleString() ?? '0'}
           sub={t('Completed purchases')}
           color="green"
           icon={ShoppingBag}
           sparklineData={convTrend}
+          loading={isLoading}
         />
         <KpiCard
           label={t('Conversion Rate')}
-          value={isLoading ? '…' : convRate}
+          value={convRate}
           sub={t('Visitors → purchasers')}
           color="purple"
           icon={TrendingUp}
           sparklineData={crTrend}
+          loading={isLoading}
         />
       </div>
 

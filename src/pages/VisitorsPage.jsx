@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader';
 import {
   Search, Filter, ChevronLeft, ChevronRight, ShoppingBag, Eye, Database,
   PlayCircle, CheckCircle, AlertCircle, AlertTriangle, Clock, Percent, Layers, Tag,
-  ChevronDown, ChevronUp, User, Mail, Phone, School, GraduationCap, Calendar, Sparkles
+  ChevronDown, ChevronUp, User, Mail, Phone, School, GraduationCap, Calendar, Sparkles, CreditCard
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
@@ -226,13 +226,15 @@ const EventTimelineCard = ({ event, formatDateTime }) => {
       )}
 
       {/* Commerce Details */}
-      {isCommerce && (
-        <div className="mt-2 bg-emerald-50 border border-emerald-100 p-3 rounded-xl text-xs flex justify-between items-center">
-          <div>
-            <p className="font-bold text-emerald-800 uppercase">{event.eventName.replace(/_/g, ' ')}</p>
-            {p.order_ref && <p className="text-slate-500 font-medium mt-0.5">Ref: {p.order_ref}</p>}
+      {isCommerce && (Number(p.value) > 0 || p.order_ref || p.package) && (
+        <div className="mt-2 bg-emerald-50 border border-emerald-100 p-2.5 rounded-xl text-xs flex justify-between items-center">
+          <div className="flex items-center gap-2 text-slate-600">
+            {p.order_ref && <span className="font-medium">Ref: <strong className="text-slate-800 font-mono">{p.order_ref}</strong></span>}
+            {p.package && <span className="text-emerald-800 font-semibold capitalize">({p.package})</span>}
           </div>
-          {p.value && <p className="text-sm font-bold text-emerald-700">{Number(p.value).toLocaleString()} DKK</p>}
+          {Number(p.value) > 0 && (
+            <span className="text-sm font-extrabold text-emerald-700">{Number(p.value).toLocaleString()} DKK</span>
+          )}
         </div>
       )}
 
@@ -260,9 +262,15 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
   const stepViews = events.filter(e => e.eventName === 'configurator_step_view');
   const abandonEvent = events.find(e => e.eventName === 'configurator_abandoned');
   const checkoutEvent = events.find(e => e.eventName === 'checkout_started' || e.eventName === 'add_to_cart');
-  const completedEvent = events.find(e => e.eventName === 'configurator_completed' || e.eventName === 'purchase_completed' || e.eventName === 'purchase');
-  const hasPurchased = data.orders?.some(o => o.status === 'purchased') || !!completedEvent;
-  const isCheckedOut = Boolean(stepTracking?.checkedOut || checkoutEvent || hasPurchased);
+  const purchaseEvent = events.find(e => e.eventName === 'purchase_completed' || e.eventName === 'purchase');
+  const isConfigCompleted = events.some(e => e.eventName === 'configurator_completed');
+
+  // Real purchase only if order is paid/purchased
+  const hasPurchased = Boolean(
+    (Array.isArray(data.orders) && data.orders.some(o => o.status === 'purchased')) ||
+    purchaseEvent
+  );
+  const isCheckedOut = Boolean((checkoutEvent || stepTracking?.checkedOut) && !hasPurchased);
 
   // Extract visited steps
   let visitedStepsList = [];
@@ -312,8 +320,12 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
   const visitedCount = stepStatusList.filter(s => s.isVisited).length || visitedNormalized.size || visitedStepsList.length;
   let maxPct = stepTracking?.percentage;
   if (typeof maxPct !== 'number' || maxPct === 0) {
-    maxPct = visitedCount >= 9 || hasPurchased ? 100 : visitedCount * 11;
+    maxPct = hasPurchased ? 100 : (visitedCount >= 9 ? 100 : visitedCount * 11);
   }
+  if (!hasPurchased && visitedCount < 9 && maxPct === 100) {
+    maxPct = visitedCount * 11;
+  }
+
   let totalConfigTime = 0;
   if (abandonEvent?.eventParams?.total_time_spent) {
     totalConfigTime = abandonEvent.eventParams.total_time_spent;
@@ -322,53 +334,30 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
   }
 
   const lastStep = stepTracking?.lastStepVisited || abandonEvent?.eventParams?.last_step || (stepViews.length > 0 ? stepViews[0].eventParams?.step_name : null);
-  const crashEvent = events.find(e => ['iframe_crash', 'iframe_stuck', 'playcanvas_crash'].includes(e.eventName));
 
-  const totalSpentAmount = Array.isArray(data.orders)
-    ? data.orders.reduce((sum, o) => sum + (Number(o.value) || 0), 0)
-    : 0;
-  const currency = data.orders?.[0]?.currency || 'DKK';
+  const parseOrderValue = (val) => {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'object') {
+      if (val.d && Array.isArray(val.d)) {
+        const sign = val.s || 1;
+        const digits = val.d.join('');
+        const exp = val.e !== undefined ? val.e - digits.length + 1 : 0;
+        return sign * Number(digits) * Math.pow(10, exp);
+      }
+      return Number(val.value) || 0;
+    }
+    return Number(val) || 0;
+  };
+
+  const purchasedOrders = Array.isArray(data.orders)
+    ? data.orders.filter(o => o.status === 'purchased')
+    : [];
+
+  const totalSpentAmount = purchasedOrders.reduce((sum, o) => sum + parseOrderValue(o.value), 0);
+  const currency = purchasedOrders[0]?.currency || data.orders?.[0]?.currency || 'DKK';
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* 3D Iframe Failure Alert Banner */}
-      {crashEvent && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50 via-rose-50/70 to-amber-50/30 border border-rose-200 text-xs flex items-start gap-3.5 shadow-sm">
-          <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 shadow-xs">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0 space-y-1">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="font-extrabold text-rose-900 text-sm">3D PlayCanvas Iframe Failure Detected</span>
-              <span className="bg-rose-200/80 text-rose-800 text-[10px] font-extrabold px-2 py-0.5 rounded uppercase border border-rose-300">
-                {crashEvent.sourceApp || crashEvent.eventParams?.source_app || 'gradcap_configurator'}
-              </span>
-            </div>
-            <p className="text-rose-700 font-medium leading-relaxed">
-              {crashEvent.eventParams?.message || 'The 3D model iframe became unresponsive or crashed during user session.'}
-            </p>
-            <div className="pt-1.5 flex items-center gap-3 text-[11px] text-rose-700 font-semibold flex-wrap">
-              {crashEvent.eventParams?.error_type && (
-                <span className="bg-white/80 px-2 py-0.5 rounded border border-rose-200">
-                  Type: <strong className="uppercase">{crashEvent.eventParams.error_type}</strong>
-                </span>
-              )}
-              {crashEvent.eventParams?.device && (
-                <span className="bg-white/80 px-2 py-0.5 rounded border border-rose-200">
-                  Device: <strong className="capitalize">{crashEvent.eventParams.device}</strong>
-                </span>
-              )}
-              {crashEvent.eventParams?.program && (
-                <span className="bg-white/80 px-2 py-0.5 rounded border border-rose-200">
-                  Program: <strong>{crashEvent.eventParams.program}</strong>
-                </span>
-              )}
-              <span>Reported: <strong>{formatDateTime(crashEvent.createdAt)}</strong></span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 1. Visitor Data & Profile Card */}
       <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
         {(data.name || data.email || data.phone || data.school) && (
@@ -408,8 +397,6 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
 
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          
-
           <div className="p-3 bg-slate-50/90 rounded-xl border border-slate-100">
             <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Education</span>
             {data.educationType ? (
@@ -438,8 +425,6 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
               {data.school || '—'}
             </span>
           </div>
-
-         
         </div>
       </div>
 
@@ -453,18 +438,22 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
           <span className={`badge font-bold px-3 py-1 rounded-full text-xs ${hasPurchased
             ? 'badge-green'
             : isCheckedOut
-              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-              : abandonEvent
-                ? 'bg-amber-100 text-amber-800'
-                : 'bg-sky-100 text-sky-800'
+              ? 'bg-sky-100 text-sky-800 border border-sky-200'
+              : isConfigCompleted
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                : abandonEvent
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-slate-100 text-slate-800'
             }`}>
             {hasPurchased
-              ? '100% Completed & Purchased'
+              ? 'Order Paid & Completed'
               : isCheckedOut
-                ? `Checked Out (${maxPct}% Funnel • ${visitedCount}/9 Pages)`
-                : abandonEvent
-                  ? `Left at ${lastStep || 'Step'} (${maxPct}% Activity)`
-                  : `${maxPct}% Activity Reached (${visitedCount}/9 Pages)`}
+                ? `Checkout Started (${visitedCount}/9 Pages)`
+                : isConfigCompleted
+                  ? `Configurator Completed (${visitedCount}/9 Pages)`
+                  : abandonEvent
+                    ? `Left at ${lastStep || 'Step'} (${maxPct}% Activity)`
+                    : `${maxPct}% Activity Reached (${visitedCount}/9 Pages)`}
           </span>
         </div>
 
@@ -482,20 +471,38 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
           </div>
         </div>
 
-        {/* Checkout Banner if user initiated checkout */}
-        {isCheckedOut && (
+        {/* Status Banner */}
+        {hasPurchased ? (
           <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-4 h-4 shrink-0" />
-              <span className="text-xs font-bold">
-                {hasPurchased ? 'Order Purchased & Paid' : 'User Reached Checkout'}
-              </span>
+              <span className="text-xs font-bold">Order Purchased & Paid</span>
+            </div>
+            <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded">
+              9 of 9 Visited (100%)
+            </span>
+          </div>
+        ) : isCheckedOut ? (
+          <div className="p-3 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 shrink-0" />
+              <span className="text-xs font-bold">Checkout Started (Payment Pending)</span>
             </div>
             <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded">
               {visitedCount} of 9 Visited ({maxPct}%)
             </span>
           </div>
-        )}
+        ) : isConfigCompleted ? (
+          <div className="p-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 text-white flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 shrink-0" />
+              <span className="text-xs font-bold">Configurator Completed</span>
+            </div>
+            <span className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded">
+              {visitedCount} of 9 Visited ({maxPct}%)
+            </span>
+          </div>
+        ) : null}
 
         {/* 9 Configurator Pages Grid */}
         <div className="space-y-2 pt-1">
@@ -601,32 +608,30 @@ const VisitorOverviewTab = ({ data, formatDate, formatDateTime }) => {
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
           <p className="text-xs font-bold text-emerald-600 uppercase">Total Spent</p>
           <p className="text-sm font-extrabold text-emerald-700 mt-1">
-            {data.orders.reduce((sum, o) => sum + (Number(o.value) || 0), 0).toLocaleString()} {data.orders[0]?.currency || 'DKK'}
+            {totalSpentAmount.toLocaleString()} {currency}
           </p>
         </div>
       </div>
 
-      {data.orders.length > 0 && (
+      {purchasedOrders.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-slate-800 text-sm">Order History ({data.orders.length})</h3>
+            <h3 className="font-bold text-slate-800 text-sm">Order History ({purchasedOrders.length})</h3>
             <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg">
-              Total Revenue: {data.orders.reduce((sum, o) => sum + (Number(o.value) || 0), 0).toLocaleString()} {data.orders[0]?.currency || 'DKK'}
+              Total Revenue: {totalSpentAmount.toLocaleString()} {currency}
             </span>
           </div>
           <div className="space-y-3">
-            {data.orders.map(order => {
-              const formattedValue = typeof order.value === 'object' && order.value !== null
-                ? (order.value.d ? Number(order.value.s * Number(order.value.d.join('')) * Math.pow(10, order.value.e - order.value.d.join('').length + 1)) : Number(order.value) || 0)
-                : (order.value ?? 0);
+            {purchasedOrders.map(order => {
+              const formattedValue = parseOrderValue(order.value);
               return (
-                <div key={order.id} className="p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                <div key={order.id} className="p-4 rounded-xl border border-slate-200 flex justify-between items-center bg-white">
                   <div>
-                    <p className="font-bold text-slate-800">Order #{order.id}</p>
+                    <p className="font-bold text-slate-800">Order #{order.orderRef || order.id}</p>
                     <p className="text-xs text-slate-500">{formatDateTime(order.createdAt)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-emerald-600">{Number(formattedValue).toLocaleString()} DKK</p>
+                    <p className="font-bold text-emerald-600">{Number(formattedValue).toLocaleString()} {order.currency || currency}</p>
                     <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-emerald-100 text-emerald-700">{order.status}</span>
                   </div>
                 </div>
