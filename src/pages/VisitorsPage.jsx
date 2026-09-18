@@ -97,7 +97,7 @@ const EventTimelineCard = ({ event, formatDateTime }) => {
   const isStepView = event.eventName === 'configurator_step_view';
   const isCompleted = event.eventName === 'configurator_completed' || event.eventName === 'purchase_completed' || event.eventName === 'purchase';
   const isStarted = event.eventName === 'configurator_started';
-  const isCommerce = ['add_to_cart', 'checkout_started', 'purchase_completed', 'purchase'].includes(event.eventName);
+  const isCommerce = ['add_to_cart', 'checkout_started', 'purchase_completed', 'purchase', 'checkout_step_completed'].includes(event.eventName);
   const isCrash = ['iframe_crash', 'iframe_stuck', 'playcanvas_crash'].includes(event.eventName);
 
   let badgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
@@ -673,10 +673,13 @@ const VisitorDetailPanel = ({ visitorId, onClose }) => {
                     {data.visitorId.substring(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-800 brand-text">{data.visitorId}</h2>
+                    <h2 className="text-xl font-bold text-slate-800 brand-text">{data.name || data.visitorId}</h2>
                     <p className="text-sm font-medium text-slate-500">
                       {(data.educationType ? formatEducation(data.educationType) : 'Unknown')} • {data.school || 'Unknown School'}
                     </p>
+                    {data.name && data.email && (
+                      <p className="text-xs text-slate-400 mt-0.5">{data.email}</p>
+                    )}
                   </div>
                 </div>
                 <button onClick={onClose} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
