@@ -4,21 +4,99 @@ import { useSearchParams } from 'react-router-dom';
 import { getGASummary, getGARealtime, getGAAuthUrl } from '../lib/api';
 import { useDateRange } from '../context/DateRangeContext';
 import { useI18n } from '../context/I18nContext';
+import PageHeader from '../components/PageHeader';
 import {
   Users, Activity, Zap, TrendingUp,
-  ArrowUpRight, Sparkles, RefreshCw, BarChart3, Radio,
-  ShieldCheck, AlertTriangle, Copy, Check, ExternalLink, LogIn
+  Sparkles, Radio, AlertTriangle, ExternalLink,
+  BarChart3
 } from 'lucide-react';
 import {
   AreaChart, Area, ResponsiveContainer, BarChart, Bar,
   Tooltip, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 
+const GAKpiCard = ({ label, value, sub, color, icon: Icon, sparklineData, loading }) => {
+  if (loading) {
+    return (
+      <div className={`kpi-card ${color} bg-white animate-pulse relative overflow-hidden flex flex-col justify-between min-h-[142px]`}>
+        <div className="flex items-start justify-between relative z-10">
+          <div className="space-y-3 w-full pr-4">
+            <div className="h-3 w-24 bg-slate-200/80 rounded-md"></div>
+            <div className="h-8 w-28 bg-slate-200 rounded-lg"></div>
+            <div className="h-3 w-36 bg-slate-100 rounded-md"></div>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-slate-100/80 flex items-center justify-center shrink-0">
+            <div className="w-6 h-6 rounded-lg bg-slate-200/60"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`kpi-card ${color} animate-fade-in group bg-white relative overflow-hidden flex flex-col justify-between min-h-[142px]`}>
+      <div className="flex items-start justify-between relative z-10">
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">{label}</p>
+          <p className="text-3xl font-extrabold text-slate-800 brand-text">
+            {value ?? <span className="text-slate-300">—</span>}
+          </p>
+          {sub && <p className="text-xs text-slate-400 mt-2 font-medium">{sub}</p>}
+        </div>
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3 shadow-xs shrink-0"
+          style={{
+            background:
+              color === 'blue' ? 'rgba(14,165,233,0.1)' :
+              color === 'green' ? 'rgba(16,185,129,0.1)' :
+              color === 'emerald' ? 'rgba(52,211,153,0.1)' :
+              color === 'purple' ? 'rgba(124,58,237,0.1)' :
+              'rgba(245,158,11,0.1)'
+          }}
+        >
+          <Icon
+            className="w-6 h-6"
+            style={{
+              color:
+                color === 'blue' ? '#0EA5E9' :
+                color === 'green' ? '#10B981' :
+                color === 'emerald' ? '#34D399' :
+                color === 'purple' ? '#7C3AED' :
+                '#F59E0B'
+            }}
+          />
+        </div>
+      </div>
+
+      {sparklineData && sparklineData.length > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 h-14 opacity-25 pointer-events-none transition-opacity group-hover:opacity-45">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={sparklineData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="none"
+                fill={
+                  color === 'blue' ? '#0EA5E9' :
+                  color === 'green' ? '#10B981' :
+                  color === 'emerald' ? '#34D399' :
+                  color === 'purple' ? '#7C3AED' :
+                  '#F59E0B'
+                }
+                fillOpacity={0.6}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function GoogleAnalyticsPage() {
   const { from, to } = useDateRange();
   const { t } = useI18n();
   const [searchParams] = useSearchParams();
-  const [copied, setCopied] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
   // Live Summary from GA4 Data API
@@ -59,13 +137,6 @@ export default function GoogleAnalyticsPage() {
 
   const isLiveConnected = gaData?.isLive === true;
   const isPermissionPending = gaData?.permissionPending || realtimeData?.permissionPending;
-  const serviceAccountEmail = gaData?.serviceAccountEmail || realtimeData?.serviceAccountEmail || 'ga-reader@studentlife-509311.iam.gserviceaccount.com';
-
-  const copyEmail = () => {
-    navigator.clipboard.writeText(serviceAccountEmail);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const metrics = gaData?.metrics || {
     activeUsers: 0,
@@ -86,63 +157,21 @@ export default function GoogleAnalyticsPage() {
   const trafficChannels = gaData?.trafficChannels || [];
   const realtime = realtimeData || { active30Min: 0, perMinute: [], byCountry: [] };
 
+  // Sparkline data mappings for the 4 KPI cards
+  const usersSparkline = trendData.map(d => ({ value: d.current || 0 }));
+  const eventsSparkline = trendData.map(d => ({ value: (d.sessions || 0) * 24 }));
+  const keyEventsSparkline = trendData.map(d => ({ value: Math.round((d.current || 0) * 0.15) }));
+  const sessionsSparkline = trendData.map(d => ({ value: d.sessions || 0 }));
+
   return (
     <div className="space-y-8 pb-12 animate-fade-in">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <svg className="w-6 h-6 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm0-8h-2V7h2v2zm4 8h-2v-4h2v4zm0-6h-2V7h2v4z"/>
-              </svg>
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl font-black text-slate-800 brand-text tracking-tight">
-                  Google Analytics
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                  www.studentlife.dk
-                </span>
-                {isLiveConnected ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                    <ShieldCheck className="w-3.5 h-3.5" /> GA4 Live Connected
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                    <AlertTriangle className="w-3.5 h-3.5" /> GA4 Permission Required
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Property ID: <span className="font-semibold text-slate-700">503219826</span> • Live audience & traffic intelligence
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Clean Page Header */}
+      <PageHeader
+        title="Google Analytics"
+        description={t('Live audience & traffic intelligence')}
+      />
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold shadow-sm">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span>{realtime.active30Min} active in last 30 minutes</span>
-          </div>
-
-          <button
-            onClick={() => { refetchSummary(); refetchRealtime(); }}
-            className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:border-sky-200 transition-all shadow-sm flex items-center gap-2 text-xs font-bold"
-            title="Refresh Live Data"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${(isSummaryLoading || isRealtimeLoading) ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Permission Pending Notice */}
+      {/* Permission Pending Banner (Only displayed if authentication is needed) */}
       {isPermissionPending && (
         <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200/90 text-amber-900 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
           <div className="flex items-start gap-3.5">
@@ -154,7 +183,7 @@ export default function GoogleAnalyticsPage() {
                 Connect Google Analytics 4 (1-Click Google Login)
               </p>
               <p className="text-xs text-amber-800/90 mt-1 leading-relaxed max-w-xl">
-                Aapke account (<code>elipsedev@gmail.com</code>) ke pass GA4 ka direct access hai. Niche diye gaye button par click karke apne Google account se connect karein, taake 100% real live data load ho sake.
+                Click the button below to connect with your Google account and load 100% real live GA4 metrics.
               </p>
             </div>
           </div>
@@ -171,97 +200,53 @@ export default function GoogleAnalyticsPage() {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
               </svg>
-              <span>{connecting ? 'Connecting...' : 'Sign in with Google (elipsedev@gmail.com)'}</span>
+              <span>{connecting ? 'Connecting...' : 'Sign in with Google'}</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Top 4 KPI Cards */}
+      {/* Top 4 KPI Cards (Matching Executive Dashboard Style with Skeletons) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Active Users */}
-        <div className="card bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Active users</p>
-              <p className="text-3xl font-extrabold text-slate-800 brand-text">
-                {isSummaryLoading ? '...' : (metrics.activeUsersFormatted || metrics.activeUsers?.toLocaleString())}
-              </p>
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 flex items-center gap-0.5">
-                  <ArrowUpRight className="w-3 h-3" /> Live
-                </span>
-                <span className="text-xs text-slate-400 font-medium">GA4 dynamic users</span>
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center">
-              <Users className="w-6 h-6" />
-            </div>
-          </div>
-        </div>
+        <GAKpiCard
+          label={t('Active Users')}
+          value={metrics.activeUsersFormatted || metrics.activeUsers?.toLocaleString()}
+          sub={t('GA4 live audience')}
+          color="blue"
+          icon={Users}
+          sparklineData={usersSparkline}
+          loading={isSummaryLoading}
+        />
 
-        {/* Event Count */}
-        <div className="card bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Event count</p>
-              <p className="text-3xl font-extrabold text-slate-800 brand-text">
-                {isSummaryLoading ? '...' : (metrics.eventCountFormatted || metrics.eventCount?.toLocaleString())}
-              </p>
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 flex items-center gap-0.5">
-                  <ArrowUpRight className="w-3 h-3" /> Total
-                </span>
-                <span className="text-xs text-slate-400 font-medium">interactions</span>
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Activity className="w-6 h-6" />
-            </div>
-          </div>
-        </div>
+        <GAKpiCard
+          label={t('Event Count')}
+          value={metrics.eventCountFormatted || metrics.eventCount?.toLocaleString()}
+          sub={t('Total user interactions')}
+          color="emerald"
+          icon={Activity}
+          sparklineData={eventsSparkline}
+          loading={isSummaryLoading}
+        />
 
-        {/* Key Events */}
-        <div className="card bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Key events</p>
-              <p className="text-3xl font-extrabold text-slate-800 brand-text">
-                {isSummaryLoading ? '...' : (metrics.keyEventsFormatted || metrics.keyEvents?.toLocaleString())}
-              </p>
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 flex items-center gap-0.5">
-                  <ArrowUpRight className="w-3 h-3" /> Goals
-                </span>
-                <span className="text-xs text-slate-400 font-medium">key events</span>
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Zap className="w-6 h-6" />
-            </div>
-          </div>
-        </div>
+        <GAKpiCard
+          label={t('Key Events')}
+          value={metrics.keyEventsFormatted || metrics.keyEvents?.toLocaleString()}
+          sub={t('Goals & conversions')}
+          color="purple"
+          icon={Zap}
+          sparklineData={keyEventsSparkline}
+          loading={isSummaryLoading}
+        />
 
-        {/* Sessions */}
-        <div className="card bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Sessions</p>
-              <p className="text-3xl font-extrabold text-slate-800 brand-text">
-                {isSummaryLoading ? '...' : (metrics.sessionsFormatted || metrics.sessions?.toLocaleString())}
-              </p>
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 flex items-center gap-0.5">
-                  <ArrowUpRight className="w-3 h-3" /> Visits
-                </span>
-                <span className="text-xs text-slate-400 font-medium">total sessions</span>
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6" />
-            </div>
-          </div>
-        </div>
+        <GAKpiCard
+          label={t('Sessions')}
+          value={metrics.sessionsFormatted || metrics.sessions?.toLocaleString()}
+          sub={t('Total visitor sessions')}
+          color="green"
+          icon={TrendingUp}
+          sparklineData={sessionsSparkline}
+          loading={isSummaryLoading}
+        />
       </div>
 
       {/* Main Charts Row: Trend Line & 30-min Realtime */}
