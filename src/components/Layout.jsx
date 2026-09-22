@@ -11,14 +11,15 @@ import {
 import NotificationPanel from './NotificationPanel';
 
 const NAV_ITEMS = [
-  { to: '/',           label: 'Executive',        icon: LayoutDashboard },
-  { to: '/audience',   label: 'Audience',         icon: Users },
-  { to: '/funnel',     label: 'Configurators',    icon: SlidersHorizontal },
-  { to: '/conversion', label: 'Conversions',      icon: TrendingUp },
-  { to: '/journey',    label: 'Customer Journey', icon: Route },
-  { to: '/marketing',  label: 'Marketing Intel',  icon: Megaphone },
-  { to: '/visitors',   label: 'Visitor Data',     icon: Database },
-  { to: '/settings',   label: 'Settings',         icon: Settings },
+  { to: '/',                 label: 'Executive',        icon: LayoutDashboard },
+  { to: '/audience',         label: 'Audience',         icon: Users },
+  { to: '/google-analytics', label: 'Google Analytics', icon: Globe },
+  { to: '/funnel',           label: 'Configurators',    icon: SlidersHorizontal },
+  { to: '/conversion',       label: 'Conversions',      icon: TrendingUp },
+  { to: '/journey',          label: 'Customer Journey', icon: Route },
+  { to: '/marketing',        label: 'Marketing Intel',  icon: Megaphone },
+  { to: '/visitors',         label: 'Visitor Data',     icon: Database },
+  { to: '/settings',         label: 'Settings',         icon: Settings },
 ];
 
 export default function Layout() {

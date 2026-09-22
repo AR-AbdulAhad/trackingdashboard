@@ -163,6 +163,7 @@ export default function ExecutiveDashboard() {
         />
       </div>
 
+      {/* Quick Actions / Navigation */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Heatmap/Activity Mock Widget */}
@@ -202,13 +203,14 @@ export default function ExecutiveDashboard() {
           </h2>
           <div className="space-y-2 flex-1">
             {[
+              { label: 'Google Analytics (GA4)', href: '/google-analytics', desc: 'Live studentlife.dk traffic & events' },
               { label: 'Visitor Directory', href: '/visitors', desc: 'Search and replay sessions' },
               { label: 'Funnel Analysis', href: '/funnel', desc: 'Configurator drop-offs' },
               { label: 'Audience Demographics', href: '/audience', desc: 'Breakdown by school & edu' },
               { label: 'Conversion Intelligence', href: '/conversion', desc: 'Segment performance' },
             ].map(({ label, href, desc }) => (
               <Link key={label} to={href}
-                className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-sky-50 transition-all group border border-slate-100 hover:border-sky-100">
+                className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 hover:bg-sky-50 transition-all group border border-slate-100 hover:border-sky-100">
                 <div>
                   <span className="block text-sm font-bold text-slate-700 group-hover:text-sky-700">{t(label)}</span>
                   <span className="block text-xs text-slate-500 mt-0.5 font-medium group-hover:text-sky-600">{t(desc)}</span>

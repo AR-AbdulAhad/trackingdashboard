@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader';
 import { apiRequest } from '../lib/api';
 import {
   UserCog, Shield, Save, Eye, EyeOff, Plus, Trash2,
-  CheckCircle, AlertCircle, RefreshCw, Crown, User, Lock, Upload, Edit, X
+  CheckCircle, AlertCircle, RefreshCw, Crown, User, Lock, Upload, Edit, X, Activity
 } from 'lucide-react';
 
 const ROLE_META = {
@@ -17,6 +17,7 @@ const ROLE_META = {
 const AVAILABLE_PAGES = [
   { id: '/', label: 'Executive' },
   { id: '/audience', label: 'Audience' },
+  { id: '/google-analytics', label: 'Google Analytics' },
   { id: '/funnel', label: 'Configurators' },
   { id: '/conversion', label: 'Conversions' },
   { id: '/journey', label: 'Customer Journey' },

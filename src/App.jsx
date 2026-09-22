@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import AudienceDashboard from './pages/AudienceDashboard';
+import GoogleAnalyticsPage from './pages/GoogleAnalyticsPage';
 import ConfiguratorDashboard from './pages/ConfiguratorDashboard';
 import ConversionDashboard from './pages/ConversionDashboard';
 import JourneyDashboard from './pages/JourneyDashboard';
@@ -20,7 +21,10 @@ import SessionReplayPage from './pages/SessionReplayPage';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes cache
       refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
       retry: 1,
     },
   },
@@ -52,6 +56,7 @@ function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<ExecutiveDashboard />} />
         <Route path="/audience" element={<AudienceDashboard />} />
+        <Route path="/google-analytics" element={<GoogleAnalyticsPage />} />
         <Route path="/funnel" element={<ConfiguratorDashboard />} />
         <Route path="/conversion" element={<ConversionDashboard />} />
         <Route path="/journey" element={<JourneyDashboard />} />

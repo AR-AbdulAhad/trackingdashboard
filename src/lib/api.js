@@ -107,3 +107,15 @@ export const getVisitors = (page = 1, limit = 20, search = '', educationType = '
 export const getVisitorDetails = (id) => apiFetch(`/api/visitor/${id}`);
 export const getVisitorRecordings = (id) => apiFetch(`/api/recordings/visitor/${id}`);
 export const getRecordingPlayback = (id) => apiFetch(`/api/recordings/play/${id}`);
+
+// Google Analytics 4 Data API
+export const getGAStatus = () => apiFetch('/api/ga/status');
+export const getGAAuthUrl = () => apiFetch('/api/ga/auth-url');
+export const disconnectGA = () => apiFetch('/api/ga/disconnect', { method: 'POST' });
+export const getGARealtime = () => apiFetch('/api/ga/realtime');
+export const getGASummary = (from, to) => {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return apiFetch(`/api/ga/summary?${params}`);
+};

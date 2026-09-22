@@ -43,34 +43,18 @@ export const NotificationProvider = ({ children }) => {
       const handleNotification = (data) => {
         const notif = { ...data, id: Date.now().toString(), read: false };
         setNotifications(prev => [notif, ...prev]);
-        debouncedInvalidate();
-      };
-
-      const handleEventTracked = () => {
-        debouncedInvalidate();
-      };
-
-      const handleVisitorIdentified = () => {
-        debouncedInvalidate();
       };
 
       socket.on('notification', handleNotification);
-      socket.on('event:tracked', handleEventTracked);
-      socket.on('visitor:identified', handleVisitorIdentified);
 
       return () => {
         socket.off('notification', handleNotification);
-        socket.off('event:tracked', handleEventTracked);
-        socket.off('visitor:identified', handleVisitorIdentified);
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
         disconnectSocket();
       };
     } else {
       disconnectSocket();
     }
-  }, [isAuthenticated, debouncedInvalidate]);
+  }, [isAuthenticated]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
