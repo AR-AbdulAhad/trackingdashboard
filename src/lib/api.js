@@ -119,3 +119,9 @@ export const getGASummary = (from, to) => {
   if (to) params.set('to', to);
   return apiFetch(`/api/ga/summary?${params}`);
 };
+export const getGAReport = (type, from, to, limit = 250) => {
+  const params = new URLSearchParams({ type, limit: String(limit) });
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return apiFetch(`/api/ga/report?${params}`);
+};

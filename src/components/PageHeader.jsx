@@ -30,27 +30,27 @@ export default function PageHeader({ title, description, hideDateFilter = false 
   };
 
   return (
-    <div className="glass px-6 py-4 rounded-2xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in mb-8">
+    <div className="glass px-4 sm:px-6 py-4 rounded-2xl min-w-0 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in mb-8">
       <div>
         <div className="flex items-center gap-2 text-xs font-bold text-sky-500 mb-2 uppercase tracking-wider">
           <span>Dashboard</span>
           <ChevronRight className="w-3 h-3 text-slate-300" />
           <span>{getBreadcrumb()}</span>
         </div>
-        <h1 className="text-3xl font-bold text-slate-800 brand-text tracking-tight">{title}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 brand-text tracking-tight">{title}</h1>
         {description && <p className="text-slate-500 text-sm mt-1 font-medium">{description}</p>}
       </div>
 
       {!hideDateFilter && (
-        <div className="flex flex-col items-end gap-3">
-          <div className="flex items-center gap-2 bg-slate-100 rounded-xl p-1 shadow-inner">
+        <div className="flex flex-col items-stretch md:items-end gap-3 min-w-0">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2 bg-slate-100 rounded-xl p-1 shadow-inner">
             {PRESETS.map((preset) => {
               const isAllTime = !from && !to && preset.days === null;
               return (
                 <button
                   key={preset.label}
                   onClick={() => handlePreset(preset.days)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  className={`flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                     isAllTime
                       ? 'bg-white shadow-sm text-sky-600'
                       : 'text-slate-600 hover:bg-white/80 hover:shadow-sm'
@@ -62,20 +62,20 @@ export default function PageHeader({ title, description, hideDateFilter = false 
             })}
           </div>
 
-          <div className="flex items-center gap-2 bg-white border border-slate-200 p-1.5 rounded-xl shadow-sm">
-            <CalendarDays className="w-4 h-4 text-slate-400 ml-2" />
+          <div className="flex items-center gap-1 sm:gap-2 bg-white border border-slate-200 p-1.5 rounded-xl shadow-sm min-w-0">
+            <CalendarDays className="w-4 h-4 text-slate-400 ml-2 shrink-0 hidden sm:block" />
             <input
               type="date"
               value={from}
               onChange={e => setFrom(e.target.value)}
-              className="text-sm bg-transparent border-none outline-none text-slate-700 px-2 cursor-pointer font-medium"
+              className="min-w-0 flex-1 text-xs sm:text-sm bg-transparent border-none outline-none text-slate-700 px-1 sm:px-2 cursor-pointer font-medium"
             />
             <span className="text-slate-300">→</span>
             <input
               type="date"
               value={to}
               onChange={e => setTo(e.target.value)}
-              className="text-sm bg-transparent border-none outline-none text-slate-700 px-2 cursor-pointer font-medium"
+              className="min-w-0 flex-1 text-xs sm:text-sm bg-transparent border-none outline-none text-slate-700 px-1 sm:px-2 cursor-pointer font-medium"
             />
           </div>
         </div>

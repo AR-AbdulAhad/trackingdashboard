@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useI18n } from '../context/I18nContext';
 import {
   LayoutDashboard, Users, SlidersHorizontal, TrendingUp, Route, Megaphone,
   LogOut, ChevronLeft, ChevronRight, Bell, Database,
-  Settings, ChevronDown, UserCog, Shield, Globe
+  Settings, ChevronDown, UserCog, Shield, Globe, Menu, X
 } from 'lucide-react';
 import NotificationPanel from './NotificationPanel';
 
@@ -29,6 +29,12 @@ export default function Layout() {
   const navigate = useNavigate();
 
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  // The mobile drawer always shows full labels
+  const narrow = collapsed && !mobileOpen;
+
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
@@ -54,24 +60,41 @@ export default function Layout() {
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
       <div className="flex w-full h-full">
 
-        {/* Sidebar */}
+        {/* Mobile drawer backdrop */}
+        {mobileOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-[2px] lg:hidden animate-fade-in"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
+
+        {/* Sidebar — off-canvas drawer below lg, static column on desktop */}
         <aside
-          className="flex flex-col shrink-0 transition-all duration-300 z-20"
+          className={`flex flex-col shrink-0 transition-all duration-300 fixed lg:static inset-y-0 left-0 z-40 lg:z-20 lg:translate-x-0 ${
+            mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+          }`}
           style={{
-            width: collapsed ? '72px' : '240px',
+            width: narrow ? '72px' : '240px',
             background: 'var(--sidebar-bg)',
             borderRight: '1px solid var(--sidebar-border)',
           }}
         >
           {/* Logo */}
           <div className="flex items-center gap-3 px-4 py-5 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
-            <img src="/logo.png" alt="StudentLife Logo" className={`shrink-0 ${collapsed ? 'w-10 h-10 object-contain' : 'w-12 h-12 object-contain'}`} />
-            {!collapsed && (
+            <img src="/logo.png" alt="StudentLife Logo" className={`shrink-0 ${narrow ? 'w-10 h-10 object-contain' : 'w-12 h-12 object-contain'}`} />
+            {!narrow && (
               <div className="animate-slide-in flex-1 min-w-0">
                 <p className="font-bold text-lg leading-tight brand-text text-slate-800 truncate tracking-wide">STUDENT</p>
                 <p className="text-slate-600 font-medium tracking-[0.2em] text-xs">LIFE</p>
               </div>
             )}
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="lg:hidden p-2 -mr-1 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Nav */}
@@ -85,10 +108,10 @@ export default function Layout() {
                 to={to}
                 end={to === '/'}
                 className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-                title={collapsed ? t(label) : undefined}
+                title={narrow ? t(label) : undefined}
               >
                 <Icon className="w-5 h-5 shrink-0" />
-                {!collapsed && <span className="animate-slide-in">{t(label)}</span>}
+                {!narrow && <span className="animate-slide-in">{t(label)}</span>}
               </NavLink>
             ))}
           </nav>
@@ -97,7 +120,7 @@ export default function Layout() {
           <div className="px-2.5 pb-4 border-t pt-4 flex flex-col gap-2" style={{ borderColor: 'var(--sidebar-border)' }}>
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="sidebar-item w-full justify-center lg:justify-start"
+              className="sidebar-item w-full justify-center lg:justify-start hidden! lg:flex!"
               title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
             >
               {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
@@ -109,7 +132,7 @@ export default function Layout() {
               title={t('Sign Out')}
             >
               <LogOut className="w-5 h-5" />
-              {!collapsed && <span className="animate-slide-in">{t('Sign Out')}</span>}
+              {!narrow && <span className="animate-slide-in">{t('Sign Out')}</span>}
             </button>
           </div>
         </aside>
@@ -118,7 +141,7 @@ export default function Layout() {
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
 
           {/* Topbar */}
-          <header className="flex items-center justify-between px-6 py-3.5 bg-white backdrop-blur-md border-b border-slate-200 z-10 shrink-0">
+          <header className="flex items-center justify-between gap-3 px-3 sm:px-6 py-3 bg-white backdrop-blur-md border-b border-slate-200 z-10 shrink-0">
 
             <div className="relative max-w-xs w-full hidden md:block">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z" /></svg>
@@ -127,9 +150,15 @@ export default function Layout() {
                 className="w-full pl-9 pr-4 py-2 text-sm font-medium rounded-xl border border-slate-200 bg-slate-50 text-slate-700 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
               />
             </div>
-            <div className="md:hidden" />
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden p-2 -ml-1 rounded-xl text-slate-600 hover:bg-slate-100"
+              aria-label="Open menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
 
               {/* Language Switcher */}
               <div className="relative" ref={langDropdownRef}>
@@ -223,7 +252,7 @@ export default function Layout() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-2 md:p-4 bg-slate-50">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-4 bg-slate-50">
             <Outlet />
           </main>
         </div>
