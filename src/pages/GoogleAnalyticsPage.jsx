@@ -1,468 +1,563 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
-import { getGASummary, getGARealtime, getGAAuthUrl } from '../lib/api';
+import { getGASummary, getGARealtime } from '../lib/api';
 import { useDateRange } from '../context/DateRangeContext';
 import { useI18n } from '../context/I18nContext';
 import PageHeader from '../components/PageHeader';
+import GAReportsExplorer from '../components/GAReportsExplorer';
 import {
-  Users, Activity, Zap, TrendingUp,
-  Sparkles, Radio, AlertTriangle, ExternalLink,
-  BarChart3
+  Users, Activity, Zap, MousePointerClick, Eye, UserPlus, Timer, Gauge,
+  ArrowUpRight, ArrowDownRight, Minus, Globe2, FileText, Share2,
+  Smartphone, Monitor, Tablet, Radio, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import {
-  AreaChart, Area, ResponsiveContainer, BarChart, Bar,
-  Tooltip, XAxis, YAxis, CartesianGrid
+  AreaChart, Area, ResponsiveContainer, BarChart, Bar, Cell,
+  Tooltip, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 
-const GAKpiCard = ({ label, value, sub, color, icon: Icon, sparklineData, loading }) => {
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+const fmtNum = (n) => (n ?? 0).toLocaleString('da-DK');
+
+const fmtDuration = (sec) => {
+  const s = Math.round(sec || 0);
+  const m = Math.floor(s / 60);
+  return m > 0 ? `${m}m ${String(s % 60).padStart(2, '0')}s` : `${s}s`;
+};
+
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y.slice(2)}`;
+};
+
+const ACCENTS = {
+  sky:     { stroke: '#0284C7', soft: 'bg-sky-50',     icon: 'text-sky-600',     ring: 'ring-sky-100' },
+  violet:  { stroke: '#7C3AED', soft: 'bg-violet-50',  icon: 'text-violet-600',  ring: 'ring-violet-100' },
+  amber:   { stroke: '#D97706', soft: 'bg-amber-50',   icon: 'text-amber-600',   ring: 'ring-amber-100' },
+  emerald: { stroke: '#059669', soft: 'bg-emerald-50', icon: 'text-emerald-600', ring: 'ring-emerald-100' },
+};
+
+// Validated categorical order (CVD-safe): sky → violet → amber
+const DEVICE_META = {
+  mobile:  { label: 'Mobile',  color: '#0284C7', icon: Smartphone },
+  desktop: { label: 'Desktop', color: '#7C3AED', icon: Monitor },
+  tablet:  { label: 'Tablet',  color: '#D97706', icon: Tablet },
+};
+
+/* ------------------------------------------------------------------ */
+/* Small building blocks                                               */
+/* ------------------------------------------------------------------ */
+
+function DeltaBadge({ value, size = 'sm' }) {
+  const base = size === 'sm'
+    ? 'text-[11px] px-2 py-0.5 gap-0.5'
+    : 'text-xs px-2.5 py-1 gap-1';
+  if (value === null || value === undefined) {
+    return (
+      <span className={`inline-flex items-center rounded-full bg-slate-100 text-slate-500 font-semibold ${base}`}>
+        <Minus className="w-3 h-3" /> —
+      </span>
+    );
+  }
+  const up = value > 0;
+  const flat = value === 0;
+  const cls = flat
+    ? 'bg-slate-100 text-slate-600'
+    : up ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700';
+  const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span className={`inline-flex items-center rounded-full font-bold tabular-nums ${cls} ${base}`}>
+      <Icon className="w-3.5 h-3.5" />
+      {Math.abs(value).toLocaleString('da-DK', { maximumFractionDigits: 1 })}%
+    </span>
+  );
+}
+
+function SectionTitle({ icon: Icon, title, subtitle, right }) {
+  return (
+    <div className="flex items-start justify-between gap-3 mb-5">
+      <div className="flex items-center gap-3 min-w-0">
+        {Icon && (
+          <div className="w-9 h-9 rounded-xl bg-slate-50 ring-1 ring-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+            <Icon className="w-[18px] h-[18px]" />
+          </div>
+        )}
+        <div className="min-w-0">
+          <h3 className="font-bold text-slate-800 brand-text text-[15px] leading-tight">{title}</h3>
+          {subtitle && <p className="text-xs text-slate-400 mt-0.5 truncate">{subtitle}</p>}
+        </div>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function EmptyState({ loading, text }) {
   if (loading) {
     return (
-      <div className={`kpi-card ${color} bg-white animate-pulse relative overflow-hidden flex flex-col justify-between min-h-[142px]`}>
-        <div className="flex items-start justify-between relative z-10">
-          <div className="space-y-3 w-full pr-4">
-            <div className="h-3 w-24 bg-slate-200/80 rounded-md"></div>
-            <div className="h-8 w-28 bg-slate-200 rounded-lg"></div>
-            <div className="h-3 w-36 bg-slate-100 rounded-md"></div>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-slate-100/80 flex items-center justify-center shrink-0">
-            <div className="w-6 h-6 rounded-lg bg-slate-200/60"></div>
-          </div>
-        </div>
+      <div className="space-y-3 py-2">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="h-7 rounded-lg bg-slate-100 animate-pulse" style={{ opacity: 1 - i * 0.15 }} />
+        ))}
       </div>
     );
   }
+  return <p className="text-xs text-slate-400 py-10 text-center">{text}</p>;
+}
 
+function ChartTooltip({ active, payload, label, metricLabel }) {
+  if (!active || !payload?.length) return null;
   return (
-    <div className={`kpi-card ${color} animate-fade-in group bg-white relative overflow-hidden flex flex-col justify-between min-h-[142px]`}>
-      <div className="flex items-start justify-between relative z-10">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">{label}</p>
-          <p className="text-3xl font-extrabold text-slate-800 brand-text">
-            {value ?? <span className="text-slate-300">—</span>}
-          </p>
-          {sub && <p className="text-xs text-slate-400 mt-2 font-medium">{sub}</p>}
-        </div>
-        <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3 shadow-xs shrink-0"
-          style={{
-            background:
-              color === 'blue' ? 'rgba(14,165,233,0.1)' :
-              color === 'green' ? 'rgba(16,185,129,0.1)' :
-              color === 'emerald' ? 'rgba(52,211,153,0.1)' :
-              color === 'purple' ? 'rgba(124,58,237,0.1)' :
-              'rgba(245,158,11,0.1)'
-          }}
-        >
-          <Icon
-            className="w-6 h-6"
-            style={{
-              color:
-                color === 'blue' ? '#0EA5E9' :
-                color === 'green' ? '#10B981' :
-                color === 'emerald' ? '#34D399' :
-                color === 'purple' ? '#7C3AED' :
-                '#F59E0B'
-            }}
-          />
-        </div>
-      </div>
-
-      {sparklineData && sparklineData.length > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 h-14 opacity-25 pointer-events-none transition-opacity group-hover:opacity-45">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sparklineData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="none"
-                fill={
-                  color === 'blue' ? '#0EA5E9' :
-                  color === 'green' ? '#10B981' :
-                  color === 'emerald' ? '#34D399' :
-                  color === 'purple' ? '#7C3AED' :
-                  '#F59E0B'
-                }
-                fillOpacity={0.6}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+    <div className="rounded-xl bg-slate-900 text-white px-3.5 py-2.5 shadow-xl text-xs">
+      <p className="text-slate-400 font-medium mb-1">{label}</p>
+      <p className="font-bold text-sm tabular-nums">
+        {fmtNum(payload[0].value)} <span className="font-medium text-slate-300">{metricLabel}</span>
+      </p>
     </div>
   );
-};
+}
+
+function Flag({ code, name }) {
+  const [failed, setFailed] = useState(false);
+  if (!code || code.length !== 2 || failed) {
+    return (
+      <span className="w-6 h-[18px] rounded-[4px] bg-slate-100 text-[9px] font-bold text-slate-500 flex items-center justify-center shrink-0">
+        {code || '?'}
+      </span>
+    );
+  }
+  return (
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      alt={name}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="w-6 h-[18px] rounded-[4px] object-cover ring-1 ring-black/5 shrink-0"
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* KPI card                                                            */
+/* ------------------------------------------------------------------ */
+
+function KpiCard({ label, value, exact, change, accent, icon: Icon, series, dataKey, loading, compareLabel }) {
+  const a = ACCENTS[accent];
+  if (loading) {
+    return (
+      <div className="card !p-6 min-h-[176px] animate-pulse">
+        <div className="h-3 w-24 bg-slate-200 rounded mb-4" />
+        <div className="h-9 w-28 bg-slate-200 rounded-lg mb-3" />
+        <div className="h-4 w-20 bg-slate-100 rounded-full" />
+      </div>
+    );
+  }
+  return (
+    <div className="card !p-0 group flex flex-col min-h-[176px]">
+      <div className="p-6 pb-2 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.12em]">{label}</p>
+          <p className="text-[34px] leading-none font-extrabold text-slate-900 brand-text mt-3 tabular-nums" title={exact}>
+            {value}
+          </p>
+          <div className="flex items-center gap-2 mt-3">
+            {change !== null && change !== undefined && <DeltaBadge value={change} />}
+            {compareLabel && <span className="text-[11px] text-slate-400 font-medium truncate">{compareLabel}</span>}
+          </div>
+        </div>
+        <div className={`w-11 h-11 rounded-2xl ${a.soft} ring-1 ${a.ring} flex items-center justify-center shrink-0 transition-transform group-hover:scale-105`}>
+          <Icon className={`w-5 h-5 ${a.icon}`} />
+        </div>
+      </div>
+      <div className="h-14 mt-auto -mb-px">
+        {series?.length > 1 && (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={series} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={`spark-${accent}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={a.stroke} stopOpacity={0.18} />
+                  <stop offset="100%" stopColor={a.stroke} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area type="monotone" dataKey={dataKey} stroke={a.stroke} strokeWidth={2} fill={`url(#spark-${accent})`} dot={false} isAnimationActive={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
+
+const TREND_METRICS = [
+  { key: 'current',    label: 'Active Users', short: 'users' },
+  { key: 'sessions',   label: 'Sessions',     short: 'sessions' },
+  { key: 'eventCount', label: 'Events',       short: 'events' },
+  { key: 'keyEvents',  label: 'Key Events',   short: 'key events' },
+  { key: 'pageViews',  label: 'Page Views',   short: 'views' },
+];
 
 export default function GoogleAnalyticsPage() {
   const { from, to } = useDateRange();
   const { t } = useI18n();
-  const [searchParams] = useSearchParams();
-  const [connecting, setConnecting] = useState(false);
+  const [trendKey, setTrendKey] = useState('current');
 
-  // Live Summary from GA4 Data API
-  const { data: gaData, isLoading: isSummaryLoading, refetch: refetchSummary } = useQuery({
+  const { data: gaData, isLoading: isSummaryLoading } = useQuery({
     queryKey: ['ga-page-summary', from, to],
     queryFn: () => getGASummary(from, to),
     staleTime: 60000,
+    refetchInterval: 5 * 60 * 1000,
     retry: 1,
   });
 
-  // Live Realtime from GA4 Data API
-  const { data: realtimeData, isLoading: isRealtimeLoading, refetch: refetchRealtime } = useQuery({
+  const { data: realtimeData, isLoading: isRealtimeLoading } = useQuery({
     queryKey: ['ga-page-realtime'],
     queryFn: getGARealtime,
-    staleTime: 60000,
+    staleTime: 30000,
+    refetchInterval: 60 * 1000,
     retry: 1,
   });
 
-  useEffect(() => {
-    if (searchParams.get('connected') === 'true') {
-      refetchSummary();
-      refetchRealtime();
-    }
-  }, [searchParams]);
-
-  const handleConnectGoogle = async () => {
-    try {
-      setConnecting(true);
-      const data = await getGAAuthUrl();
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      alert('Error initiating Google Login: ' + err.message);
-      setConnecting(false);
-    }
-  };
-
-  const isLiveConnected = gaData?.isLive === true;
-  const isPermissionPending = gaData?.permissionPending || realtimeData?.permissionPending;
-
-  const metrics = gaData?.metrics || {
-    activeUsers: 0,
-    activeUsersFormatted: '0',
-    sessions: 0,
-    sessionsFormatted: '0',
-    eventCount: 0,
-    eventCountFormatted: '0',
-    keyEvents: 0,
-    keyEventsFormatted: '0',
-    pageViews: 0,
-    pageViewsFormatted: '0',
-  };
-
-  const trendData = gaData?.trend || [];
+  const m = gaData?.metrics || {};
+  const changes = gaData?.changes || {};
+  const range = gaData?.range;
+  const trend = gaData?.trend || [];
   const countries = gaData?.countries || [];
-  const pageViews = gaData?.pageViews || [];
-  const trafficChannels = gaData?.trafficChannels || [];
+  const pages = gaData?.pageViews || [];
+  const channels = gaData?.trafficChannels || [];
+  const devices = gaData?.devices || [];
   const realtime = realtimeData || { active30Min: 0, perMinute: [], byCountry: [] };
+  const isLive = gaData?.isLive === true;
 
-  // Sparkline data mappings for the 4 KPI cards
-  const usersSparkline = trendData.map(d => ({ value: d.current || 0 }));
-  const eventsSparkline = trendData.map(d => ({ value: (d.sessions || 0) * 24 }));
-  const keyEventsSparkline = trendData.map(d => ({ value: Math.round((d.current || 0) * 0.15) }));
-  const sessionsSparkline = trendData.map(d => ({ value: d.sessions || 0 }));
+  const compareLabel = null; // comparison period is shown once in the context bar
+  const activeTrend = TREND_METRICS.find((x) => x.key === trendKey);
+  const trendTotal = trend.reduce((s, d) => s + (d[trendKey] || 0), 0);
+
+  const updatedAt = gaData?.fetchedAt
+    ? new Date(gaData.fetchedAt).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   return (
-    <div className="space-y-8 pb-12 animate-fade-in">
-      {/* Clean Page Header */}
-      <PageHeader
-        title="Google Analytics"
-        description={t('Live audience & traffic intelligence')}
-      />
+    <div className="space-y-6 pb-12 animate-fade-in">
+      <PageHeader title="Google Analytics" description={t('Live audience & traffic intelligence')} />
 
-      {/* Permission Pending Banner (Only displayed if authentication is needed) */}
-      {isPermissionPending && (
-        <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50/60 border border-amber-200/90 text-amber-900 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-          <div className="flex items-start gap-3.5">
-            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 shrink-0 mt-0.5 shadow-xs">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-amber-950 flex items-center gap-2">
-                Connect Google Analytics 4 (1-Click Google Login)
-              </p>
-              <p className="text-xs text-amber-800/90 mt-1 leading-relaxed max-w-xl">
-                Click the button below to connect with your Google account and load 100% real live GA4 metrics.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full md:w-auto">
-            <button
-              onClick={handleConnectGoogle}
-              disabled={connecting}
-              className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm hover:shadow active:scale-98 cursor-pointer disabled:opacity-50"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              <span>{connecting ? 'Connecting...' : 'Sign in with Google'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Top 4 KPI Cards (Matching Executive Dashboard Style with Skeletons) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <GAKpiCard
-          label={t('Active Users')}
-          value={metrics.activeUsersFormatted || metrics.activeUsers?.toLocaleString()}
-          sub={t('GA4 live audience')}
-          color="blue"
-          icon={Users}
-          sparklineData={usersSparkline}
-          loading={isSummaryLoading}
-        />
-
-        <GAKpiCard
-          label={t('Event Count')}
-          value={metrics.eventCountFormatted || metrics.eventCount?.toLocaleString()}
-          sub={t('Total user interactions')}
-          color="emerald"
-          icon={Activity}
-          sparklineData={eventsSparkline}
-          loading={isSummaryLoading}
-        />
-
-        <GAKpiCard
-          label={t('Key Events')}
-          value={metrics.keyEventsFormatted || metrics.keyEvents?.toLocaleString()}
-          sub={t('Goals & conversions')}
-          color="purple"
-          icon={Zap}
-          sparklineData={keyEventsSparkline}
-          loading={isSummaryLoading}
-        />
-
-        <GAKpiCard
-          label={t('Sessions')}
-          value={metrics.sessionsFormatted || metrics.sessions?.toLocaleString()}
-          sub={t('Total visitor sessions')}
-          color="green"
-          icon={TrendingUp}
-          sparklineData={sessionsSparkline}
-          loading={isSummaryLoading}
-        />
+      {/* ---------- Connection / context bar ---------- */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 rounded-2xl bg-white border border-slate-200/80 text-xs">
+        {isSummaryLoading ? (
+          <span className="text-slate-400">{t('Connecting to Google Analytics...')}</span>
+        ) : isLive ? (
+          <>
+            <span className="flex items-center gap-2 font-bold text-slate-700">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              GA4 · {gaData?.propertyName}
+            </span>
+            <span className="text-slate-400">Property ID <span className="font-semibold text-slate-600 tabular-nums">{gaData?.propertyId}</span></span>
+            {range && (
+              <span className="text-slate-400">
+                {range.allTime ? t('All time') : `${fmtDate(range.from)} – ${fmtDate(range.to)}`}
+                {range.previous && (
+                  <> · {t('compared with')} <span className="font-semibold text-slate-600">{fmtDate(range.previous.startDate)} – {fmtDate(range.previous.endDate)}</span></>
+                )}
+              </span>
+            )}
+            {updatedAt && <span className="ml-auto text-slate-400">{t('Updated')} {updatedAt}</span>}
+          </>
+        ) : (
+          <span className="flex items-center gap-2 font-semibold text-rose-700">
+            <AlertCircle className="w-4 h-4" />
+            {t('Google Analytics data is unavailable right now.')}
+            {gaData?.error && <span className="font-normal text-slate-400 truncate max-w-md">({gaData.error})</span>}
+          </span>
+        )}
       </div>
 
-      {/* Main Charts Row: Trend Line & 30-min Realtime */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Active Users Trend Chart */}
-        <div className="card lg:col-span-2 bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
-                  <BarChart3 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 brand-text text-base">Active Users Trend (GA4 Live)</h3>
-                  <p className="text-xs text-slate-400">Date-wise live user traffic</p>
-                </div>
-              </div>
+      {/* ---------- Primary KPIs ---------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <KpiCard label={t('Active Users')} value={m.activeUsersFormatted ?? '0'} exact={fmtNum(m.activeUsers)}
+          change={changes.activeUsers} accent="sky" icon={Users} series={trend} dataKey="current"
+          loading={isSummaryLoading} compareLabel={compareLabel} />
+        <KpiCard label={t('Event Count')} value={m.eventCountFormatted ?? '0'} exact={fmtNum(m.eventCount)}
+          change={changes.eventCount} accent="emerald" icon={Activity} series={trend} dataKey="eventCount"
+          loading={isSummaryLoading} compareLabel={compareLabel} />
+        <KpiCard label={t('Key Events')} value={m.keyEventsFormatted ?? '0'} exact={fmtNum(m.keyEvents)}
+          change={changes.keyEvents} accent="violet" icon={Zap} series={trend} dataKey="keyEvents"
+          loading={isSummaryLoading} compareLabel={compareLabel} />
+        <KpiCard label={t('Sessions')} value={m.sessionsFormatted ?? '0'} exact={fmtNum(m.sessions)}
+          change={changes.sessions} accent="amber" icon={MousePointerClick} series={trend} dataKey="sessions"
+          loading={isSummaryLoading} compareLabel={compareLabel} />
+      </div>
 
-              <div className="flex items-center gap-4 text-xs font-bold">
-                <span className="flex items-center gap-1.5 text-sky-600">
-                  <span className="w-3 h-1 rounded-full bg-sky-500"></span> Active Users
+      {/* ---------- Trend + Realtime ---------- */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="card xl:col-span-2 !p-6">
+          <div className="flex flex-col 2xl:flex-row 2xl:items-start justify-between gap-4 mb-5">
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.12em]">{t('Trend')}</p>
+              <div className="flex items-baseline gap-3 mt-1.5">
+                <span className="text-3xl font-extrabold text-slate-900 brand-text tabular-nums">
+                  {trendKey === 'current' ? fmtNum(m.activeUsers) : fmtNum(trendTotal)}
                 </span>
-                <span className="flex items-center gap-1.5 text-slate-400">
-                  <span className="w-3 h-1 rounded-full bg-slate-300"></span> Sessions
+                <span className="text-sm text-slate-500 font-medium">
+                  {t(activeTrend.label)} {t('total')} · {range?.granularity === 'month' ? t('monthly view') : t('daily view')}
                 </span>
               </div>
             </div>
-
-            <div className="h-72 w-full pt-2">
-              {trendData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gaCurrent" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '12px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)' }}
-                    />
-                    <Area type="monotone" dataKey="current" name="Active Users" stroke="#0EA5E9" strokeWidth={3} fill="url(#gaCurrent)" dot={{ r: 4, fill: '#0EA5E9', strokeWidth: 2, stroke: '#fff' }} />
-                    <Area type="monotone" dataKey="sessions" name="Sessions" stroke="#94a3b8" strokeWidth={2} strokeDasharray="4 4" fill="none" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
-                  {isSummaryLoading ? 'Loading GA4 live trend...' : 'No trend records returned for selected range'}
-                </div>
-              )}
+            <div className="flex gap-1 bg-slate-100 rounded-xl p-1 self-start max-w-full overflow-x-auto">
+              {TREND_METRICS.map((tm) => (
+                <button
+                  key={tm.key}
+                  onClick={() => setTrendKey(tm.key)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    trendKey === tm.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {t(tm.label)}
+                </button>
+              ))}
             </div>
+          </div>
+
+          <div className="h-[300px] -ml-2">
+            {trend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gaTrendFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0284C7" stopOpacity={0.22} />
+                      <stop offset="100%" stopColor="#0284C7" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} dy={8} minTickGap={16} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} width={44}
+                    tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : v)} />
+                  <Tooltip
+                    content={<ChartTooltip metricLabel={t(activeTrend.short)} />}
+                    cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                  />
+                  <Area
+                    type="monotone" dataKey={trendKey} stroke="#0284C7" strokeWidth={2.5}
+                    fill="url(#gaTrendFill)"
+                    dot={trend.length <= 31 ? { r: 3, fill: '#fff', stroke: '#0284C7', strokeWidth: 2 } : false}
+                    activeDot={{ r: 5, fill: '#0284C7', stroke: '#fff', strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <EmptyState loading={isSummaryLoading} text={t('No trend records returned for selected range')} />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right: Realtime Users in Last 30 Minutes */}
-        <div className="card bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active users in last 30 minutes</p>
-                <p className="text-4xl font-extrabold text-slate-800 brand-text mt-1">{realtime.active30Min || 0}</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Radio className="w-5 h-5 animate-pulse" />
-              </div>
-            </div>
+        {/* Realtime — dark hero card */}
+        <div className="relative rounded-[20px] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white p-6 shadow-lg flex flex-col">
+          <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-sky-500/20 blur-3xl pointer-events-none" />
+          <div className="relative flex items-center justify-between">
+            <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-200">
+              <span className="relative flex w-2 h-2">
+                <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-400" />
+              </span>
+              {t('Realtime')}
+            </span>
+            <Radio className="w-4 h-4 text-slate-400" />
+          </div>
 
-            {/* Minute-by-minute bars */}
-            <div className="mb-5">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Active users per minute</p>
-              <div className="h-20 w-full">
-                {realtime.perMinute?.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={realtime.perMinute}>
-                      <Bar dataKey="activeUsers" fill="#38BDF8" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                    No active per-minute traffic right now
+          <div className="relative mt-4">
+            <p className="text-6xl font-extrabold brand-text tabular-nums leading-none">
+              {isRealtimeLoading ? '–' : realtime.active30Min || 0}
+            </p>
+            <p className="text-sm text-slate-300 mt-2">{t('Active users in last 30 minutes')}</p>
+          </div>
+
+          <div className="relative mt-6">
+            <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              <span>{t('Per minute')}</span>
+            </div>
+            <div className="h-16">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={realtime.perMinute || []} margin={{ top: 0, right: 0, left: 0, bottom: 0 }} barCategoryGap={2}>
+                  <Tooltip
+                    cursor={{ fill: 'rgba(255,255,255,0.06)' }}
+                    content={({ active, payload }) => active && payload?.length ? (
+                      <div className="rounded-lg bg-white text-slate-900 px-2.5 py-1.5 text-[11px] shadow-lg">
+                        <b className="tabular-nums">{payload[0].value}</b> {t('users')} ·{' '}
+                        {payload[0].payload.minuteAgo === 0 ? t('now') : `${payload[0].payload.minuteAgo} min`}
+                      </div>
+                    ) : null}
+                  />
+                  <Bar dataKey="activeUsers" radius={[3, 3, 0, 0]} minPointSize={2}>
+                    {(realtime.perMinute || []).map((d, i) => (
+                      <Cell key={i} fill={d.activeUsers > 0 ? '#38BDF8' : 'rgba(148,163,184,0.25)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-between text-[10px] text-slate-500 mt-1.5">
+              <span>-30 min</span><span>{t('now')}</span>
+            </div>
+          </div>
+
+          <div className="relative mt-6 pt-5 border-t border-white/10 flex-1">
+            <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              <span>{t('Country')}</span><span>{t('Users')}</span>
+            </div>
+            {realtime.byCountry?.length > 0 ? (
+              <div className="space-y-2.5">
+                {realtime.byCountry.slice(0, 5).map((c) => (
+                  <div key={c.country} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-200 font-medium">{c.country}</span>
+                    <span className="font-bold tabular-nums">{c.activeUsers}</span>
                   </div>
-                )}
+                ))}
               </div>
-            </div>
-
-            {/* Country breakdown in realtime */}
-            <div>
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                <span>Country (Realtime)</span>
-                <span>Active users</span>
-              </div>
-              <div className="space-y-2">
-                {realtime.byCountry?.length > 0 ? (
-                  realtime.byCountry.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-semibold">
-                      <span className="flex items-center gap-2 text-slate-700">
-                        <span>📍</span>
-                        <span>{item.country}</span>
-                      </span>
-                      <span className="font-extrabold text-slate-800">{item.activeUsers}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 py-2 italic text-center">No active users in last 30 min</p>
-                )}
-              </div>
-            </div>
+            ) : (
+              <p className="text-xs text-slate-400 text-center py-4">{t('No active users in last 30 min')}</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Suggested For You: 3 Detailed Cards Matching GA4 Home */}
-      <div>
-        <h2 className="text-lg font-bold text-slate-800 brand-text mb-4 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-amber-500" />
-          Audience & Traffic Intelligence (GA4 Live)
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Active users by Country */}
-          <div className="card bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800 text-sm">Active users by Country</h3>
-                <span className="text-xs text-slate-400">Selected Range</span>
+      {/* ---------- Engagement strip + devices ---------- */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="card xl:col-span-2 !p-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-100">
+            {[
+              { label: t('Page Views'), value: m.pageViewsFormatted ?? '0', exact: fmtNum(m.pageViews), change: changes.screenPageViews, icon: Eye },
+              { label: t('New Users'), value: m.newUsersFormatted ?? '0', exact: fmtNum(m.newUsers), change: changes.newUsers, icon: UserPlus },
+              { label: t('Engagement Rate'), value: `${((m.engagementRate || 0) * 100).toFixed(1)}%`, change: changes.engagementRate, icon: Gauge },
+              { label: t('Avg. Session'), value: fmtDuration(m.averageSessionDuration), change: changes.averageSessionDuration, icon: Timer },
+            ].map((s) => (
+              <div key={s.label} className="p-5" title={s.exact}>
+                <div className="flex items-center gap-2 text-slate-500">
+                  <s.icon className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-[0.1em]">{s.label}</span>
+                </div>
+                <p className="text-2xl font-extrabold text-slate-900 brand-text mt-2.5 tabular-nums">
+                  {isSummaryLoading ? <span className="inline-block h-7 w-16 bg-slate-100 rounded animate-pulse" /> : s.value}
+                </p>
+                {!isSummaryLoading && s.change !== null && s.change !== undefined && <div className="mt-2"><DeltaBadge value={s.change} /></div>}
               </div>
-
-              <div className="space-y-3 pt-1">
-                {countries.length > 0 ? (
-                  countries.map((c, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-700">{c.country}</span>
-                        <span className="font-extrabold text-slate-800">{c.activeUsers?.toLocaleString()}</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className="bg-sky-500 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${c.barPct || 5}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 italic py-6 text-center">
-                    {isSummaryLoading ? 'Loading country data...' : 'No country records returned'}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Views by Page title */}
-          <div className="card bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800 text-sm">Views by Page Title</h3>
-                <span className="text-xs text-slate-400">Selected Range</span>
-              </div>
-
-              <div className="space-y-3 pt-1">
-                {pageViews.length > 0 ? (
-                  pageViews.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-slate-50 transition-colors">
-                      <span className="font-semibold text-slate-700 truncate max-w-[180px]" title={p.title}>
-                        {p.title}
-                      </span>
-                      <span className="font-extrabold text-slate-800">{p.views?.toLocaleString()}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 italic py-6 text-center">
-                    {isSummaryLoading ? 'Loading page views...' : 'No page view records returned'}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Sessions by Channel */}
-          <div className="card bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800 text-sm">Sessions by Channel</h3>
-                <span className="text-xs text-slate-400">Selected Range</span>
-              </div>
-
-              <div className="space-y-3 pt-1">
-                {trafficChannels.length > 0 ? (
-                  trafficChannels.map((ch, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-700">{ch.channel}</span>
-                        <span className="font-extrabold text-slate-800">{ch.sessions?.toLocaleString()}</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className="bg-purple-500 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${ch.barPct || 5}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 italic py-6 text-center">
-                    {isSummaryLoading ? 'Loading traffic channels...' : 'No channel records returned'}
-                  </p>
-                )}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
+
+        <div className="card !p-5">
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em] mb-3">{t('Devices')}</p>
+          {devices.length > 0 ? (
+            <>
+              <div className="flex h-2.5 w-full rounded-full overflow-hidden gap-[2px] bg-white">
+                {devices.map((d) => (
+                  <div key={d.device} style={{ width: `${Math.max(d.pct, 1)}%`, background: DEVICE_META[d.device]?.color || '#94a3b8' }}
+                    title={`${DEVICE_META[d.device]?.label || d.device}: ${d.pct}%`} />
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                {devices.map((d) => {
+                  const meta = DEVICE_META[d.device] || { label: d.device, color: '#94a3b8', icon: Monitor };
+                  return (
+                    <div key={d.device}>
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                        <span className="w-2 h-2 rounded-full" style={{ background: meta.color }} />
+                        {t(meta.label)}
+                      </div>
+                      <p className="text-lg font-extrabold text-slate-900 tabular-nums mt-0.5">{d.pct}%</p>
+                      <p className="text-[11px] text-slate-400 tabular-nums">{fmtNum(d.activeUsers)} {t('users')}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <EmptyState loading={isSummaryLoading} text={t('No device data')} />
+          )}
+        </div>
       </div>
+
+      {/* ---------- Breakdown tables ---------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Countries */}
+        <div className="card !p-6">
+          <SectionTitle icon={Globe2} title={t('Active users by Country')} subtitle={t('Top 10 in selected range')} />
+          {countries.length > 0 ? (
+            <div className="space-y-3.5">
+              {countries.map((c) => (
+                <div key={c.country} className="group/row" title={`${c.country}: ${fmtNum(c.activeUsers)} (${c.pct}%)`}>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Flag code={c.countryCode} name={c.country} />
+                    <span className="font-semibold text-slate-700 truncate flex-1">{c.country}</span>
+                    <span className="text-xs text-slate-400 tabular-nums w-10 text-right">{c.pct}%</span>
+                    <span className="font-bold text-slate-900 tabular-nums w-12 text-right">{fmtNum(c.activeUsers)}</span>
+                  </div>
+                  <div className="ml-9 mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full bg-sky-600 transition-all duration-700" style={{ width: `${Math.max(c.barPct, 2)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState loading={isSummaryLoading} text={t('No country records returned')} />
+          )}
+        </div>
+
+        {/* Pages */}
+        <div className="card !p-6">
+          <SectionTitle icon={FileText} title={t('Views by Page Title')} subtitle={t('Most viewed pages')} />
+          {pages.length > 0 ? (
+            <div className="space-y-1">
+              {pages.map((p, i) => (
+                <div key={p.title + i} className="relative flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 transition-colors" title={p.title}>
+                  <div className="absolute inset-y-1 left-0 rounded-lg bg-sky-50/80 -z-0" style={{ width: `${Math.max(p.barPct, 3)}%` }} />
+                  <span className={`relative w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                    i < 3 ? 'bg-slate-900 text-white' : 'bg-white ring-1 ring-slate-200 text-slate-500'
+                  }`}>{i + 1}</span>
+                  <span className="relative text-sm font-medium text-slate-700 truncate flex-1">
+                    {p.title.replace(/\s*-\s*Student Life$/i, '')}
+                  </span>
+                  <span className="relative text-sm font-bold text-slate-900 tabular-nums">{fmtNum(p.views)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState loading={isSummaryLoading} text={t('No page view records returned')} />
+          )}
+        </div>
+
+        {/* Channels */}
+        <div className="card !p-6">
+          <SectionTitle icon={Share2} title={t('Sessions by Channel')} subtitle={t('Where visitors come from')} />
+          {channels.length > 0 ? (
+            <div className="space-y-3.5">
+              {channels.map((ch) => (
+                <div key={ch.channel} title={`${ch.channel}: ${fmtNum(ch.sessions)} (${ch.pct}%)`}>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="font-semibold text-slate-700 truncate flex-1">{ch.channel}</span>
+                    <span className="text-xs text-slate-400 tabular-nums w-10 text-right">{ch.pct}%</span>
+                    <span className="font-bold text-slate-900 tabular-nums w-12 text-right">{fmtNum(ch.sessions)}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full bg-violet-600 transition-all duration-700" style={{ width: `${Math.max(ch.barPct, 2)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState loading={isSummaryLoading} text={t('No channel records returned')} />
+          )}
+        </div>
+      </div>
+
+      {/* ---------- Page-wise & detailed reports ---------- */}
+      <GAReportsExplorer from={from} to={to} />
     </div>
   );
 }
