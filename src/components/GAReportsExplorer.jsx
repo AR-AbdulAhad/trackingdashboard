@@ -171,7 +171,7 @@ export default function GAReportsExplorer({ from, to }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const prefetchTab = (key) => queryClient.prefetchQuery({
-    queryKey: ['ga-report', 'recorded-values-v2', key, from, to],
+    queryKey: ['ga-report', 'exclude-localhost-v3', key, from, to],
     queryFn: () => getGAReport(key, from, to),
     staleTime: 5 * 60 * 1000,
   });
@@ -184,7 +184,7 @@ export default function GAReportsExplorer({ from, to }) {
   const tab = TABS.find((x) => x.key === tabKey);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['ga-report', 'recorded-values-v2', tabKey, from, to],
+    queryKey: ['ga-report', 'exclude-localhost-v3', tabKey, from, to],
     queryFn: () => getGAReport(tabKey, from, to),
     staleTime: 5 * 60 * 1000,
     retry: 1,
