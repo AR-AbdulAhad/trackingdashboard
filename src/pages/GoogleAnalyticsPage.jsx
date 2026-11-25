@@ -269,11 +269,20 @@ export default function GoogleAnalyticsPage() {
             {updatedAt && <span className="ml-auto text-slate-400">{t('Updated')} {updatedAt}</span>}
           </>
         ) : (
-          <span className="flex items-center gap-2 font-semibold text-rose-700">
-            <AlertCircle className="w-4 h-4" />
-            {t('Google Analytics data is unavailable right now.')}
-            {gaData?.error && <span className="font-normal text-slate-400 truncate max-w-md">({gaData.error})</span>}
-          </span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 w-full">
+            <span className="flex items-center gap-2 font-semibold text-rose-700">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {t('Google Analytics data is unavailable right now.')}
+              {gaData?.error && <span className="font-normal text-slate-500">{gaData.error}</span>}
+            </span>
+            {gaData?.permissionRequired && (
+              <span className="text-slate-500">
+                {t('Grant Viewer access to this service account')}
+                {gaData?.serviceAccountEmail && <strong className="ml-1">{gaData.serviceAccountEmail}</strong>}
+                {t('in GA4 Property access management.')}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
